@@ -1,0 +1,2286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trò chơi Thợ Mỏ Nhàn Rỗi - 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a; /* slate-900 */
+            --panel-bg: rgba(30, 41, 59, 0.7); /* slate-800 with transparency */
+            --panel-border: #4338ca; /* indigo-700 */
+            --accent-color: #f59e0b; /* amber-500 */
+            --text-light: #e2e8f0; /* slate-200 */
+            --text-dark: #94a3b8; /* slate-400 */
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        .panel {
+            background-color: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: 0 0 30px rgba(67, 56, 202, 0.25);
+            width: 100%;
+            max-width: 340px;
+        }
+        .toggle-button {
+            width: 4rem;
+            height: 4rem;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .toggle-button:hover {
+            background-color: var(--panel-border);
+        }
+        .toggle-button.active {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        .toggle-button svg {
+            width: 2rem;
+            height: 2rem;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: white;
+            background-image: linear-gradient(to right, #f59e0b, #f97316);
+            border: none;
+            box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+        }
+        .btn-primary:disabled {
+            background-image: none;
+            background-color: #475569;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .cooldown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .upgrade-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-semibold;
+            margin-bottom: 0.25rem;
+        }
+        .upgrade-title svg {
+            width: 1.25rem;
+            height: 1.25rem;
+            color: var(--accent-color);
+        }
+        .money-flash {
+            transition: text-shadow 0.1s;
+            text-shadow: 0 0 15px #4ade80, 0 0 5px #4ade80;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            font-size: 1rem;
+        }
+        .hero-card {
+            background-color: rgba(15, 23, 42, 0.5);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+        .hero-card.equipped {
+            border-color: var(--accent-color);
+        }
+        .rarity-Common { color: #94a3b8; }
+        .rarity-Rare { color: #3b82f6; }
+        .rarity-Epic { color: #a855f7; }
+        .rarity-Legend { color: #f59e0b; }
+        .rarity-Mythic { color: #ef4444; }
+        .rarity-Secret { color: #ec4899; }
+
+        /* Slider styles */
+        .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #f59e0b 0%, #f59e0b 18%, #475569 18%, #475569 100%);
+            outline: none;
+            border-radius: 0.5rem;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f59e0b;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f59e0b;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        /* Gacha Modal Styles */
+        #gacha-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            backdrop-filter: blur(5px);
+            pointer-events: none;
+        }
+        #gacha-modal.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .gacha-container {
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+        }
+        .gacha-reels-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        .gacha-reel-wrapper {
+            width: 140px;
+            height: 140px;
+            overflow: hidden;
+            border-radius: 1rem;
+            background: rgba(0,0,0,0.3);
+            border: 2px solid var(--panel-border);
+            position: relative;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        .gacha-reel-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 1rem;
+            pointer-events: none;
+            box-shadow: 
+                inset 0 60px 30px -30px rgba(15, 23, 42, 0.8),
+                inset 0 -60px 30px -30px rgba(15, 23, 42, 0.8);
+        }
+        .gacha-reel {
+            display: flex;
+            flex-direction: column;
+        }
+        .gacha-reel img {
+            width: 140px;
+            height: 140px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        .gacha-reel-wrapper.highlight-Common { border-color: #94a3b8; box-shadow: 0 0 20px #94a3b8; }
+        .gacha-reel-wrapper.highlight-Rare { border-color: #3b82f6; box-shadow: 0 0 20px #3b82f6; }
+        .gacha-reel-wrapper.highlight-Epic { border-color: #a855f7; box-shadow: 0 0 20px #a855f7; }
+        .gacha-reel-wrapper.highlight-Legend { border-color: #f59e0b; box-shadow: 0 0 20px #f59e0b; }
+        .gacha-reel-wrapper.highlight-Mythic { border-color: #ef4444; box-shadow: 0 0 20px #ef4444; }
+        .gacha-reel-wrapper.highlight-Secret { border-color: #ec4899; box-shadow: 0 0 20px #ec4899; }
+        
+        #gacha-final-result {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        #gacha-final-result.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .final-hero-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            background-color: var(--panel-bg);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border: 1px solid var(--panel-border);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .final-hero-display .hero-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 0.75rem;
+            border: 4px solid var(--accent-color);
+        }
+        #notification-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .notification {
+            background-color: rgba(30, 41, 59, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: translateY(-20px);
+            animation: notification-fade 3s ease-out forwards;
+        }
+        .notification.info {
+            background-color: rgba(59, 130, 246, 0.9); /* blue-500 */
+        }
+        @keyframes notification-fade {
+            0% { opacity: 0; transform: translateY(-20px); }
+            15% { opacity: 1; transform: translateY(0); }
+            85% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        /* Scrollbar styles for Hero list */
+        #hero-collection::-webkit-scrollbar {
+            width: 8px;
+        }
+        #hero-collection::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 10px;
+        }
+        #hero-collection::-webkit-scrollbar-thumb {
+            background: var(--panel-border);
+            border-radius: 10px;
+        }
+        #hero-collection::-webkit-scrollbar-thumb:hover {
+            background: #6366f1; /* indigo-500 */
+        }
+        /* Banner Tabs */
+        .banner-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--panel-border);
+        }
+        .banner-tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 0.5rem 0.5rem 0 0;
+            background-color: transparent;
+            color: var(--text-dark);
+            border: 1px solid transparent;
+            border-bottom: none;
+            transition: all 0.2s;
+        }
+        .banner-tab.active {
+            background-color: var(--panel-bg);
+            color: var(--text-light);
+            border-color: var(--panel-border);
+            border-bottom-color: var(--panel-bg);
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+    <div id="notification-container"></div>
+    <div class="relative h-screen w-screen">
+        <canvas id="game-canvas"></canvas>
+
+        <div class="absolute top-4 left-4 panel !max-w-xs !py-2 !px-4">
+             <div class="resource-item text-xl"><span>💰</span> <span id="money" class="font-bold text-green-400 transition-all">0 $</span></div>
+        </div>
+
+        <div class="absolute bottom-4 left-4 pointer-events-none flex flex-col gap-4">
+            <div id="panel-container" class="pointer-events-auto">
+                <!-- Panels will be injected here by JS -->
+            </div>
+            <div class="flex gap-4 pointer-events-auto">
+                <button id="toggle-player" class="toggle-button" title="Nâng cấp Bạn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/><path d="M12 15a9 9 0 0 0-9 9h18a9 9 0 0 0-9-9z"/></svg>
+                </button>
+                 <button id="toggle-miners" class="toggle-button" title="Nâng cấp Thợ Mỏ">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </button>
+                 <button id="toggle-agents" class="toggle-button" title="Agents">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </button>
+                 <button id="toggle-gacha" class="toggle-button" title="Quay Thưởng">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 1 0 10 7"/></svg>
+                </button>
+                 <button id="toggle-heroes" class="toggle-button" title="Trang bị Hero">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </button>
+                <button id="toggle-stats" class="toggle-button" title="Thống kê">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                </button>
+                <button id="quickDigBtn" class="toggle-button" title="Đào Nhanh">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.14 12.44a1 1 0 0 0-1.28 1.56l-5.13 3.95a1 1 0 0 1-1.27 0l-5.13-3.95a1 1 0 1 0-1.28-1.56l5.77-4.44a1 1 0 0 1 1.27 0l5.76 4.44z"/><path d="M3 20h18"/><path d="M12 18v-5.5"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="gacha-modal">
+        <div id="gacha-result-container" class="gacha-container"></div>
+    </div>
+
+    <!-- Panel Templates -->
+    <template id="template-player">
+        <div class="panel">
+            <div class="space-y-3">
+                <div>
+                    <h3 class="upgrade-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5.5 5 5a2 2 0 0 1 0 2.82l-5 5a2 2 0 0 1-2.82 0l-5-5a2 2 0 0 1 0-2.82l5-5a2 2 0 0 1 2.82 0z"/><path d="m12 12 5 5"/><path d="M2 21h6"/><path d="m17 14-4-4"/></svg>
+                        <span>Nâng cấp Cuốc <span class="text-sm text-slate-400">(Lv. <span id="clickPowerStat">1</span>)</span></span>
+                    </h3>
+                    <button id="upgradeClick" class="btn-primary"><span id="upgradeClickCost">20 $</span></button>
+                </div>
+                 <div>
+                    <h3 class="upgrade-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l3 3v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6Z"/><path d="M9 3V1h6v2"/><path d="M10 12h4"/><path d="M12 10v4"/></svg>
+                        <span>Đào Nhiều Ô <span class="text-sm text-slate-400">(Lv. <span id="mineMultiLevelStat">0</span>)</span></span>
+                    </h3>
+                    <button id="upgradeMineMulti" class="btn-primary"><span id="upgradeMineMultiCost">500 $</span></button>
+                </div>
+                 <div>
+                    <h3 class="upgrade-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"/><path d="M3 12.6A9 9 0 0 1 12 3a9 9 0 0 1 8.4 5.4"/><path d="M7 21.9l-4-4 4-4"/><path d="M21 11.4A9 9 0 0 1 12 21a9 9 0 0 1-8.4-5.4"/></svg>
+                        <span>Tự Động Đào <span class="text-sm text-slate-400">(Lv. <span id="autoMineLevelStat">0</span>)</span></span>
+                    </h3>
+                    <button id="upgradeAutoMine" class="btn-primary"><span id="upgradeAutoMineCost">100 $</span></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="template-miners">
+        <div class="panel">
+            <div class="space-y-3">
+                <div>
+                    <h3 class="upgrade-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span>Thuê Thợ Mỏ <span class="text-sm text-slate-400">(<span id="minerCountStat">0</span>/5)</span></span>
+                    </h3>
+                    <button id="hireMiner" class="btn-primary"><span id="hireMinerCost">50 $</span></button>
+                </div>
+                <div>
+                    <h3 class="upgrade-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 21 14 10.5 21 21"/><path d="M21 3.5 10.5 14 3.5 3.5"/></svg>
+                        <span>Sức Mạnh <span class="text-sm text-slate-400">(Lv. <span id="minerPowerLevelStat">1</span>)</span></span>
+                    </h3>
+                    <button id="upgradeMinerPower" class="btn-primary"><span id="upgradeMinerPowerCost">200 $</span></button>
+                </div>
+                 <div>
+                    <h3 class="upgrade-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        <span>Siêu Cấp <span class="text-sm text-slate-400">(Lv. <span id="superMinerLevelStat">0</span>/5)</span></span>
+                    </h3>
+                    <button id="upgradeSuperMiner" class="btn-primary"><span id="upgradeSuperMinerCost">2000 $</span></button>
+                </div>
+                 <div>
+                    <h3 class="upgrade-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        <span>Thể Lực <span class="text-sm text-slate-400">(Lv. <span id="minerStaminaLevelStat">0</span>)</span></span>
+                    </h3>
+                    <button id="upgradeMinerStamina" class="btn-primary"><span id="upgradeMinerStaminaCost">300 $</span></button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="template-agents">
+        <div class="panel">
+            <div class="flex items-start gap-4">
+                <img src="https://www.pngmart.com/files/24/Tung-Tung-Tung-Sahur-PNG-Photos.png" class="w-20 h-20 object-contain bg-slate-900/50 rounded-lg p-1" alt="Agent Tung tung tung sahuer">
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg">Tung tung tung sahuer</h3>
+                    <p class="text-sm text-slate-400 mb-2">Phá hủy toàn bộ khối trong khu vực 5x5. Hồi chiêu: 60s.</p>
+                    <div id="agentTungContainer">
+                        <button id="buyAgentTung" class="btn-primary">1500 $</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="template-stats">
+        <div class="panel">
+            <h2 class="font-bold text-lg border-b border-slate-600 pb-1 mb-2">Thống Kê</h2>
+            <div class="space-y-2">
+                <div class="stat-item"><span>⛏️ Tầng đã đào:</span> <span id="depthStat" class="font-bold text-purple-400">0</span></div>
+                <div class="stat-item"><span>🕒 Thời gian chơi:</span> <span id="timePlayed" class="font-bold">00:00:00</span></div>
+                <div class="stat-item"><span>💎 Khối đã đào:</span> <span id="blocksMined" class="font-bold">0</span></div>
+                <div class="stat-item"><span>📈 Tiền kiếm được:</span> <span id="moneyEarned" class="font-bold">0 $</span></div>
+                <div class="stat-item"><span>📉 Tiền đã tiêu:</span> <span id="moneySpent" class="font-bold">0 $</span></div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-600">
+                <h3 class="font-semibold mb-2">🎵 Âm nhạc</h3>
+                <div class="flex items-center gap-2 mb-2">
+                    <button id="music-toggle" class="btn-primary !w-auto px-3 text-lg" title="Bật/Tắt nhạc">🔊</button>
+                    <button id="music-next" class="btn-primary !w-auto px-3 text-lg" title="Bài tiếp theo">⏭️</button>
+                    <span class="text-sm text-slate-400">Âm lượng:</span>
+                    <span id="music-volume-display" class="text-sm font-bold">18%</span>
+                </div>
+                <input id="music-volume" type="range" min="0" max="100" value="18" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider">
+                <div class="flex justify-between text-xs text-slate-400 mt-1">
+                    <span>0%</span>
+                    <span>100%</span>
+                </div>
+                
+                <div class="mt-3 pt-3 border-t border-slate-600">
+                    <h4 class="font-semibold mb-2 text-sm">🔊 Hiệu ứng âm thanh</h4>
+                    <div class="flex items-center gap-2 mb-2">
+                        <button id="sfx-toggle" class="btn-primary !w-auto px-3 text-sm" title="Bật/Tắt hiệu ứng">🔊</button>
+                        <span class="text-sm text-slate-400">Âm lượng:</span>
+                        <span id="sfx-volume-display" class="text-sm font-bold">50%</span>
+                    </div>
+                    <input id="sfx-volume" type="range" min="0" max="100" value="50" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider">
+                    <div class="flex justify-between text-xs text-slate-400 mt-1">
+                        <span>0%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+                
+                <div class="mt-2 text-xs text-slate-400">
+                    <div id="audio-status">Trạng thái: Đang khởi tạo...</div>
+                    <button id="debug-audio" class="text-xs text-blue-400 hover:text-blue-300 mt-1">Debug Audio</button>
+                    <button id="debug-next" class="text-xs text-green-400 hover:text-green-300 mt-1 ml-2">Debug Next</button>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-600">
+                 <h3 class="font-semibold mb-2">Giftcode</h3>
+                 <div class="flex gap-2">
+                     <input id="giftcode-input" type="text" class="bg-slate-900/50 rounded-md px-2 py-1 flex-grow text-white" placeholder="Nhập code...">
+                     <button id="giftcode-submit" class="btn-primary !w-auto px-4">OK</button>
+                 </div>
+                 <p id="giftcode-message" class="text-sm text-center mt-2 h-4"></p>
+            </div>
+        </div>
+    </template>
+    
+    <template id="template-gacha">
+        <div class="panel">
+            <div class="banner-tabs">
+                <button class="banner-tab active" data-banner="hyper">Newbie</button>
+                <button class="banner-tab" data-banner="allstars">All Stars</button>
+            </div>
+            <div id="gacha-banner-content">
+                <!-- Banner content will be rendered here by JS -->
+            </div>
+        </div>
+    </template>
+
+    <template id="template-heroes">
+        <div class="panel">
+            <h2 class="font-bold text-lg border-b border-slate-600 pb-1 mb-2">Trang bị Hero (<span id="equipped-count">0</span>/3)</h2>
+            <div id="hero-collection" class="space-y-2 max-h-64 overflow-y-auto">
+                <p class="text-slate-400 text-center">Chưa có hero nào. Hãy quay thưởng!</p>
+            </div>
+        </div>
+    </template>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // --- DOM Elements ---
+        let moneyEl, panelContainer, canvas, notificationContainer;
+        let toggleButtons = {};
+        
+        // --- Audio System ---
+        let audioContext, audioElement, gainNode;
+        let sfxContext, sfxElement, sfxGainNode;
+        
+        // --- Game State ---
+        let state = {
+            resources: { money: 100000 }, // Start with some money for testing
+            stats: { 
+                timePlayed: 0,
+                blocksMined: 0,
+                moneyEarned: 0,
+                moneySpent: 0,
+                pityCounters: {
+                    hyper: 200,
+                    allstars: 200,
+                },
+            },
+            upgrades: { 
+                clickPower: 1, 
+                mineMultiLevel: 0,
+                autoMineLevel: 0,
+                minerCount: 0,
+                minerPowerLevel: 1,
+                superMinerLevel: 0,
+                minerStaminaLevel: 0,
+            },
+            agents: {
+                tung: { owned: false, cooldown: 0 }
+            },
+            heroes: {
+                collection: [],
+                equipped: [],
+            },
+            depth: 0,
+            usedCodes: [],
+            activeBanner: 'hyper',
+            music: {
+                volume: 0.18,
+                isPlaying: false,
+                currentTrack: 0,
+                tracks: ['music/track-1.mp3', 'music/track-2.mp3', 'music/track-3.mp3'],
+                sfxVolume: 0.5,
+                sfxEnabled: true
+            },
+        };
+        let activePanel = null;
+
+        // --- Game Config ---
+        const MINE_COLS = 8;
+        const MINE_ROWS = 8;
+        const MINE_HEIGHT = 10;
+        const BLOCK_SIZE = 1;
+        const BLOCK_TYPES = {
+            grass: { health: 54, color: 0x6a994e, sellValue: 2.4 },
+            dirt: { health: 36, color: 0x966919, sellValue: 2.4 },
+            stone: { 
+                health: 54, color: 0x718096, sellValue: 4.8,
+                deepGradient: ['#333333', '#111111']
+            },
+            copper: { 
+                health: 180, sellValue: 8.4,
+                gradient: ['#16a34a', '#ca8a04']
+            },
+            coal: { health: 288, color: 0x2d3748, sellValue: 14.4 },
+            lapis: { 
+                health: 432, sellValue: 36, color: 0x1e40af,
+                deepGradient: ['#000000', '#1e40af']
+            },
+            gold: { health: 720, color: 0xf6e05e, sellValue: 72 },
+            ruby: { health: 1080, color: 0xe0115f, sellValue: 144 },
+            emerald: { 
+                health: 1440, sellValue: 252, color: 0x10b981,
+                deepGradient: ['#064e3b', '#065f46']
+            },
+            rossara: { 
+                health: 2160, sellValue: 432,
+                gradient: ['#db2777', '#9333ea']
+            },
+            diamond: { health: 2880, color: 0x00ffff, sellValue: 720 },
+            obsidian: { 
+                health: 7200, sellValue: 500, color: 0x281c3b,
+                deepGradient: ['#000000', '#4c1d95']
+            },
+        };
+        
+        const HERO_DATA = {
+            // Banner Hyper
+            naruto: { id: 'naruto', name: 'Naruto', rarity: 'Common', image: 'https://photo-resize-zmp3.zadn.vn/w600_r1x1_jpeg/cover/1/9/5/7/19571506525e47f5b79977c1fc20cec1.jpg', bonusType: 'flat', bonusValue: 2, bonusText: '+2$ mỗi khối' },
+            nobara: { id: 'nobara', name: 'Nobara', rarity: 'Common', image: 'https://cdn.rafled.com/anime-icons/images/15b724c33ed746795f3700cd90b7c4951cafd54d05abc08fe14e3dc0b1a3fa93.jpg', bonusType: 'flat', bonusValue: 2, bonusText: '+2$ mỗi khối' },
+            sukuna: { id: 'sukuna', name: 'Sukuna', rarity: 'Rare', image: 'https://i.pinimg.com/736x/04/f8/fd/04f8fdc99be9bf05db546d77f09e2509.jpg', bonusType: 'flat', bonusValue: 5, bonusText: '+5$ mỗi khối' },
+            kakashi: { id: 'kakashi', name: 'Kakashi', rarity: 'Rare', image: 'https://i.pinimg.com/736x/46/c4/70/46c47013059023669fd998ec3d8ac269.jpg', bonusType: 'flat', bonusValue: 5, bonusText: '+5$ mỗi khối' },
+            itadori: { id: 'itadori', name: 'Itadori', rarity: 'Epic', image: 'https://i.scdn.co/image/ab67616d0000b273e5525e7a8334a094ea129aa1', bonusType: 'flat', bonusValue: 10, bonusText: '+10$ mỗi khối' },
+            yuta: { id: 'yuta', name: 'Yuta', rarity: 'Legend', image: 'https://i1.sndcdn.com/artworks-ZSy6Igf6byo3ZRgS-G7Lx1Q-t500x500.jpg', bonusType: 'flat', bonusValue: 20, bonusText: '+20$ mỗi khối' },
+            gojo: { id: 'gojo', name: 'Gojo', rarity: 'Mythic', image: 'https://i.scdn.co/image/ab67616d00001e02be8d8aa9fcd65c5f40351a96', bonusType: 'multiplier', bonusValue: 1.5, bonusText: 'x1.5 tổng tiền' },
+            megumi: { id: 'megumi', name: 'Megumi', rarity: 'Secret', image: 'https://i.pinimg.com/736x/d8/62/be/d862bec8ab6702ebb71024d07a323af1.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+            // Banner All Stars
+            itachi: { id: 'itachi', name: 'Itachi', rarity: 'Common', image: 'https://4kwallpapers.com/images/wallpapers/itachi-uchiha-2048x2048-19971.jpg', bonusType: 'flat', bonusValue: 15, bonusText: '+15$ mỗi khối' },
+            nanami: { id: 'nanami', name: 'Nanami', rarity: 'Common', image: 'https://i.pinimg.com/736x/d2/b2/90/d2b290e8cf7898eefdd64b68ae477849.jpg', bonusType: 'flat', bonusValue: 17, bonusText: '+17$ mỗi khối' },
+            zoro: { id: 'zoro', name: 'Zoro', rarity: 'Rare', image: 'https://i.pinimg.com/736x/f0/71/dc/f071dc841f593eb7af5b9aed7dd2aaac.jpg', bonusType: 'flat', bonusValue: 25, bonusText: '+25$ mỗi khối' },
+            bakugo: { id: 'bakugo', name: 'Bakugo', rarity: 'Rare', image: 'https://i.pinimg.com/736x/03/4a/a7/034aa76d0892d3f421f25ed8116d186f.jpg', bonusType: 'flat', bonusValue: 28, bonusText: '+28$ mỗi khối' },
+            'jinwoo': { id: 'jinwoo', name: 'Jin Woo', rarity: 'Epic', image: 'https://img.asmedia.epimg.net/resizer/v2/CQQFFTMTVFAWRGOUSQWHFR4CLY.png?auth=ceff9904f42b7a9c324f2b49ed90b343dfcf411d9688e66ad081acb3197af62a&width=1200&height=1200&smart=true', bonusType: 'flat', bonusValue: 40, bonusText: '+40$ mỗi khối' },
+            levi: { id: 'levi', name: 'Levi', rarity: 'Legend', image: 'https://static.wikia.nocookie.net/shingekinokyojin/images/0/0a/Levi_Ackermann_%28Anime%29_character_image_%28854%29.png/revision/latest?cb=20231106070611', bonusType: 'flat', bonusValue: 60, bonusText: '+60$ mỗi khối' },
+            luffy: { id: 'luffy', name: 'Luffy', rarity: 'Mythic', image: 'https://i.redd.it/shigaraki-vs-luffy-who-wins-v0-pct4a10f4yve1.jpg?width=1920&format=pjpg&auto=webp&s=731df8ebfb170581b1c7a6c31d3e662406f8bd5a', bonusType: 'multiplier', bonusValue: 2, bonusText: 'x2 tổng tiền' },
+            goku: { id: 'goku', name: 'Goku', rarity: 'Secret', image: 'https://bleedingcool.com/wp-content/uploads/2020/01/ultra-instinct-goku-900x900.jpg', bonusType: 'flat', bonusValue: 500, bonusText: '+500$ mỗi khối' }
+        };
+
+        const GACHA_BANNERS = {
+            hyper: {
+                name: "Hyper - Dành cho newbie",
+                cost: 1000,
+                refundRate: 0.2,
+                rates: { Common: 0.66, Rare: 0.22, Epic: 0.078, Legend: 0.03, Mythic: 0.01, Secret: 0.002 },
+                pool: {
+                    Common: ['naruto', 'nobara'],
+                    Rare: ['sukuna', 'kakashi'],
+                    Epic: ['itadori'],
+                    Legend: ['yuta'],
+                    Mythic: ['gojo'],
+                    Secret: ['megumi'],
+                }
+            },
+            allstars: {
+                name: "All Stars",
+                cost: 50000,
+                refundRate: 0.2,
+                rates: { Common: 0.66, Rare: 0.22, Epic: 0.078, Legend: 0.03, Mythic: 0.01, Secret: 0.002 },
+                pool: {
+                    Common: ['itachi', 'nanami'],
+                    Rare: ['zoro', 'bakugo'],
+                    Epic: ['jinwoo'],
+                    Legend: ['levi'],
+                    Mythic: ['luffy'],
+                    Secret: ['goku'],
+                }
+            }
+        };
+
+        // --- 3D Scene Variables ---
+        let scene, camera, renderer, raycaster, mouse;
+        let mineGrid = [];
+        let mineMeshes = [];
+        let particles = [];
+        let shrinkingBlocks = [];
+        let visualMiners = [];
+        let autoMineTimer = 0;
+        let autoMineTargetIndex = 0;
+        
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.background = null;
+            const aspect = window.innerWidth / window.innerHeight;
+            const viewSize = MINE_COLS * 2.0;
+            const halfViewSize = viewSize / 2;
+            camera = new THREE.OrthographicCamera(-halfViewSize * aspect, halfViewSize * aspect, halfViewSize, -halfViewSize, -100, 100);
+            camera.position.set(12, 12, 12);
+            const centerX = (MINE_COLS-1) * BLOCK_SIZE / 2;
+            const centerZ = (MINE_ROWS-1) * BLOCK_SIZE / 2;
+            camera.lookAt(centerX, -MINE_HEIGHT/2, centerZ);
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(10, 20, 15);
+            scene.add(directionalLight);
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            window.addEventListener('resize', onWindowResize, false);
+            canvas.addEventListener('click', onCanvasClick, false);
+        }
+
+        // --- Game Logic ---
+        function getBlockType(isTopLayer, currentDepth) {
+            if (isTopLayer) return 'grass';
+
+            const ORE_SPAWN_RANGES = {
+                diamond:  { min: 80, max: 100 },
+                ruby:     { min: 80, max: 100 },
+                rossara:  { min: 50, max: 75 },
+                emerald:  { min: 50, max: 75 },
+                lapis:    { min: 20, max: 40 },
+                copper:   { min: 20, max: 40 },
+                gold:     { min: 40, max: 100 },
+                coal:     { min: 30, max: 80 },
+                obsidian: { min: 40, max: 120 },
+            };
+            
+            const IN_RANGE_CHANCE = 0.005;
+            const OUT_OF_RANGE_CHANCE = 0.00006;
+
+            const oreCheckOrder = ['diamond', 'ruby', 'rossara', 'emerald', 'obsidian', 'gold', 'lapis', 'copper', 'coal'];
+
+            for (const ore of oreCheckOrder) {
+                const config = ORE_SPAWN_RANGES[ore];
+                let chance = OUT_OF_RANGE_CHANCE;
+                
+                if (config && currentDepth >= config.min && currentDepth <= config.max) {
+                    chance = IN_RANGE_CHANCE;
+                }
+                
+                if (Math.random() < chance) {
+                    return ore;
+                }
+            }
+
+            // Base ores
+            if (currentDepth > 100) return 'stone';
+            if (currentDepth > 5 || (currentDepth > 2 && Math.random() < 0.6)) return 'stone';
+            return 'dirt';
+        }
+
+        function createBlockData(isTopLayer, currentDepth) {
+            const blockTypeName = getBlockType(isTopLayer, currentDepth);
+            const blockType = BLOCK_TYPES[blockTypeName];
+            return { type: blockTypeName, health: blockType.health, maxHealth: blockType.health };
+        }
+        
+        function createGradientMaterial(color1, color2) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const context = canvas.getContext('2d');
+            const gradient = context.createLinearGradient(0, 0, 0, 64);
+            gradient.addColorStop(0, color1);
+            gradient.addColorStop(1, color2);
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 64, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            return new THREE.MeshStandardMaterial({ map: texture });
+        }
+
+        function createBlockMesh(x, y, z, blockData, currentDepth) {
+            const geometry = new THREE.BoxGeometry(BLOCK_SIZE * 0.95, BLOCK_SIZE * 0.95, BLOCK_SIZE * 0.95);
+            const blockTypeInfo = BLOCK_TYPES[blockData.type];
+            let material;
+
+            const isDeep = currentDepth >= 100;
+
+            if (isDeep && blockTypeInfo.deepGradient) {
+                material = createGradientMaterial(...blockTypeInfo.deepGradient);
+            } else if (blockTypeInfo.gradient) {
+                material = createGradientMaterial(...blockTypeInfo.gradient);
+            } else {
+                const baseColor = new THREE.Color(blockTypeInfo.color);
+                const hsl = {};
+                baseColor.getHSL(hsl);
+                hsl.l += (Math.random() - 0.5) * 0.1;
+                baseColor.setHSL(hsl.h, hsl.s, hsl.l);
+                material = new THREE.MeshStandardMaterial({ color: baseColor });
+            }
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x * BLOCK_SIZE, -y * BLOCK_SIZE, z * BLOCK_SIZE);
+            mesh.userData = { 
+                gridX: x, gridY: y, gridZ: z, 
+                targetYScale: 1.0, 
+                targetYPosition: -y * BLOCK_SIZE,
+                isFlashing: false,
+                flashTime: 0
+            };
+            return mesh;
+        }
+
+        function initializeMine() {
+            for (let y = 0; y < MINE_HEIGHT; y++) {
+                const layerData = [], layerMeshes = [];
+                const currentDepth = state.depth + y;
+                for (let z = 0; z < MINE_ROWS; z++) {
+                    for (let x = 0; x < MINE_COLS; x++) {
+                        const blockData = createBlockData(y === 0, currentDepth);
+                        const mesh = createBlockMesh(x, y, z, blockData, currentDepth);
+                        layerData.push(blockData);
+                        layerMeshes.push(mesh);
+                        scene.add(mesh);
+                    }
+                }
+                mineGrid.push(layerData);
+                mineMeshes.push(layerMeshes);
+            }
+        }
+
+        function digBlock(x, y, z, power, isPlayerAction = false, isSuperMiner = false) {
+            if (y !== 0) return;
+            const index = z * MINE_COLS + x;
+            if (!mineGrid[y] || !mineGrid[y][index]) return;
+            const blockData = mineGrid[y][index];
+            const mesh = mineMeshes[y][index];
+            if (!mesh || blockData.health <= 0) return;
+            blockData.health -= power;
+            mesh.userData.isFlashing = true;
+            mesh.userData.flashTime = 0.15;
+            if (mesh.material.emissive) {
+                mesh.material.emissive.setHex(0xffffff);
+            }
+            createHitParticles(mesh.position, mesh.material.color || 0xffffff);
+            if (blockData.health <= 0) {
+                const blockTypeInfo = BLOCK_TYPES[blockData.type];
+                let moneyGained = blockTypeInfo.sellValue;
+                
+                const depthBonus = 1 + (Math.floor(state.depth / 10) * 0.01);
+                moneyGained *= depthBonus;
+
+                let flatBonus = 0;
+                let multiplier = 1;
+                state.heroes.equipped.forEach(heroId => {
+                    const hero = HERO_DATA[heroId];
+                    if (hero.bonusType === 'flat') flatBonus += hero.bonusValue;
+                    else if (hero.bonusType === 'multiplier') multiplier *= hero.bonusValue;
+                });
+                moneyGained = Math.round((moneyGained + flatBonus) * multiplier);
+                state.stats.blocksMined++;
+                state.resources.money += moneyGained;
+                state.stats.moneyEarned += moneyGained;
+                moneyEl.classList.add('money-flash');
+                setTimeout(() => moneyEl.classList.remove('money-flash'), 200);
+                shrinkingBlocks.push(mesh);
+                mineMeshes[y][index] = null;
+                checkRowsCleared();
+            } else {
+                mesh.userData.targetYScale = blockData.health / blockData.maxHealth;
+            }
+            const multiLevel = isPlayerAction ? state.upgrades.mineMultiLevel : (isSuperMiner ? state.upgrades.superMinerLevel : 0);
+            if (multiLevel > 0) {
+                const splashDamage = power * 0.25 * multiLevel;
+                for (let dz = -1; dz <= 1; dz++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dz === 0) continue;
+                        const nx = x + dx;
+                        const nz = z + dz;
+                        if (nx >= 0 && nx < MINE_COLS && nz >= 0 && nz < MINE_ROWS) {
+                            digBlock(nx, y, nz, splashDamage, false, false);
+                        }
+                    }
+                }
+            }
+            updateUI({ fullRender: false });
+        }
+
+        function checkRowsCleared() {
+            if (mineMeshes[0].every(mesh => mesh === null)) {
+                state.depth++;
+                mineGrid.shift();
+                mineMeshes.shift();
+                const newY = state.depth + MINE_HEIGHT - 1;
+                const newLayerData = [], newLayerMeshes = [];
+                for (let z = 0; z < MINE_ROWS; z++) {
+                    for (let x = 0; x < MINE_COLS; x++) {
+                        const blockData = createBlockData(false, newY);
+                        const mesh = createBlockMesh(x, MINE_HEIGHT - 1, z, blockData, newY);
+                        newLayerData.push(blockData);
+                        newLayerMeshes.push(mesh);
+                        scene.add(mesh);
+                    }
+                }
+                mineGrid.push(newLayerData);
+                mineMeshes.push(newLayerMeshes);
+                for(let y = 0; y < MINE_HEIGHT; y++) {
+                    for(let i = 0; i < mineMeshes[y].length; i++) {
+                        const mesh = mineMeshes[y][i];
+                        if(mesh) {
+                            mesh.userData.gridY = y;
+                            mesh.userData.targetYPosition = -y * BLOCK_SIZE;
+                        }
+                    }
+                }
+                autoMineTargetIndex = 0;
+            }
+        }
+        
+        function createHitParticles(position, color) {
+            const particleCount = 5;
+            const particleGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const particleMaterial = new THREE.MeshBasicMaterial({ color: color });
+            for (let i = 0; i < particleCount; i++) {
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                particle.position.copy(position);
+                particle.velocity = new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+                particle.lifetime = Math.random() * 0.5 + 0.3;
+                particles.push(particle);
+                scene.add(particle);
+            }
+        }
+        
+        function addMiner() {
+            const minerGroup = new THREE.Group();
+            const bodyGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.6, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+            minerGroup.add(new THREE.Mesh(bodyGeo, bodyMat));
+            const headGeo = new THREE.SphereGeometry(0.2, 16, 16);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 0.5;
+            minerGroup.add(head);
+            const lightGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.02, 8);
+            const lightMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const light = new THREE.Mesh(lightGeo, lightMat);
+            light.position.set(0, 0.6, 0.2);
+            light.rotation.x = Math.PI / 2;
+            minerGroup.add(light);
+            const startX = Math.floor(Math.random() * MINE_COLS);
+            const startZ = Math.floor(Math.random() * MINE_ROWS);
+            minerGroup.position.set(startX, 0.5, startZ);
+            scene.add(minerGroup);
+            visualMiners.push({ mesh: minerGroup, state: 'IDLE', target: null, digTimer: 0, restTimer: 0 });
+        }
+
+        // --- UI & Rendering ---
+        function showNotification(message, type = 'info') {
+            const notif = document.createElement('div');
+            notif.className = `notification ${type}`;
+            notif.textContent = message;
+            notificationContainer.appendChild(notif);
+            setTimeout(() => {
+                notif.remove();
+            }, 3000);
+        }
+
+        function updateUI(options = {}) {
+            const fullRender = options.fullRender === undefined ? true : options.fullRender;
+
+            moneyEl.textContent = `${state.resources.money} $`;
+            const currentPanel = document.querySelector('#panel-container .panel');
+            if (!currentPanel) return;
+
+            if (fullRender && activePanel === 'template-gacha') {
+                renderGachaPanel();
+            }
+
+            // Update stats if visible
+            const depthStatEl = currentPanel.querySelector('#depthStat');
+            if (depthStatEl) {
+                if (fullRender) { 
+                    depthStatEl.textContent = state.depth;
+                    const hours = Math.floor(state.stats.timePlayed / 3600).toString().padStart(2, '0');
+                    const minutes = Math.floor((state.stats.timePlayed % 3600) / 60).toString().padStart(2, '0');
+                    const seconds = Math.floor(state.stats.timePlayed % 60).toString().padStart(2, '0');
+                    currentPanel.querySelector('#timePlayed').textContent = `${hours}:${minutes}:${seconds}`;
+                    currentPanel.querySelector('#blocksMined').textContent = state.stats.blocksMined;
+                    currentPanel.querySelector('#moneyEarned').textContent = `${state.stats.moneyEarned} $`;
+                    currentPanel.querySelector('#moneySpent').textContent = `${state.stats.moneySpent} $`;
+                }
+            }
+
+            // Update music UI if visible
+            const musicToggleBtn = currentPanel.querySelector('#music-toggle');
+            if (musicToggleBtn && fullRender) {
+                updateMusicUI();
+            }
+
+            // Update hero list if visible
+            const heroCollectionEl = currentPanel.querySelector('#hero-collection');
+            if(heroCollectionEl) {
+                currentPanel.querySelector('#equipped-count').textContent = state.heroes.equipped.length;
+                if (fullRender) { 
+                    if (state.heroes.collection.length === 0) {
+                        heroCollectionEl.innerHTML = `<p class="text-slate-400 text-center">Chưa có hero nào. Hãy quay thưởng!</p>`;
+                    } else {
+                        heroCollectionEl.innerHTML = '';
+                        state.heroes.collection.forEach(heroId => {
+                            const hero = HERO_DATA[heroId];
+                            if (!hero) return;
+                            const isEquipped = state.heroes.equipped.includes(heroId);
+                            const card = document.createElement('div');
+                            card.className = `hero-card ${isEquipped ? 'equipped' : ''}`;
+                            card.innerHTML = `
+                                <img src="${hero.image}" class="w-12 h-12 object-cover rounded">
+                                <div class="flex-1">
+                                    <p class="font-bold">${hero.name} <span class="text-sm font-normal rarity-${hero.rarity}">(${hero.rarity})</span></p>
+                                    <p class="text-sm text-slate-400">${hero.bonusText}</p>
+                                </div>
+                                <button class="btn-primary !w-auto px-3" data-hero-id="${heroId}">${isEquipped ? 'Gỡ' : 'Trang bị'}</button>
+                            `;
+                            heroCollectionEl.appendChild(card);
+                        });
+                    }
+                }
+            }
+            
+            // Update upgrade buttons (luôn cập nhật để thay đổi trạng thái disabled)
+            const upgradeClickBtn = currentPanel.querySelector('#upgradeClick');
+            if (upgradeClickBtn) {
+                currentPanel.querySelector('#clickPowerStat').textContent = state.upgrades.clickPower;
+                const clickCost = Math.ceil(15 * Math.pow(1.22, state.upgrades.clickPower - 1));
+                currentPanel.querySelector('#upgradeClickCost').textContent = `${clickCost} $`;
+                upgradeClickBtn.disabled = state.resources.money < clickCost;
+
+                currentPanel.querySelector('#mineMultiLevelStat').textContent = state.upgrades.mineMultiLevel;
+                const mineMultiCost = Math.ceil(450 * Math.pow(2.8, state.upgrades.mineMultiLevel));
+                currentPanel.querySelector('#upgradeMineMultiCost').textContent = `${mineMultiCost} $`;
+                currentPanel.querySelector('#upgradeMineMulti').disabled = state.resources.money < mineMultiCost;
+                
+                currentPanel.querySelector('#autoMineLevelStat').textContent = state.upgrades.autoMineLevel;
+                const autoMineCost = Math.ceil(80 * Math.pow(2.4, state.upgrades.autoMineLevel));
+                currentPanel.querySelector('#upgradeAutoMineCost').textContent = `${autoMineCost} $`;
+                currentPanel.querySelector('#upgradeAutoMine').disabled = state.resources.money < autoMineCost;
+            }
+
+            const hireMinerBtn = currentPanel.querySelector('#hireMiner');
+            if (hireMinerBtn) {
+                currentPanel.querySelector('#minerCountStat').textContent = `${state.upgrades.minerCount}/5`;
+                const hireCost = Math.ceil(40 * Math.pow(1.55, state.upgrades.minerCount));
+                const hireCostEl = currentPanel.querySelector('#hireMinerCost');
+                if (state.upgrades.minerCount >= 5) {
+                    hireCostEl.textContent = "Max";
+                    hireMinerBtn.disabled = true;
+                } else {
+                    hireCostEl.textContent = `${hireCost} $`;
+                    hireMinerBtn.disabled = state.resources.money < hireCost;
+                }
+                
+                currentPanel.querySelector('#minerPowerLevelStat').textContent = state.upgrades.minerPowerLevel;
+                const minerPowerCost = Math.ceil(150 * Math.pow(1.65, state.upgrades.minerPowerLevel - 1));
+                currentPanel.querySelector('#upgradeMinerPowerCost').textContent = `${minerPowerCost} $`;
+                currentPanel.querySelector('#upgradeMinerPower').disabled = state.resources.money < minerPowerCost;
+
+                currentPanel.querySelector('#superMinerLevelStat').textContent = `${state.upgrades.superMinerLevel}/5`;
+                const superMinerCost = Math.ceil(1800 * Math.pow(3.8, state.upgrades.superMinerLevel));
+                const upgradeSuperMinerBtn = currentPanel.querySelector('#upgradeSuperMiner');
+                const superMinerCostEl = currentPanel.querySelector('#upgradeSuperMinerCost');
+                 if (state.upgrades.superMinerLevel >= 5) {
+                    superMinerCostEl.textContent = "Max";
+                    upgradeSuperMinerBtn.disabled = true;
+                } else {
+                    superMinerCostEl.textContent = `${superMinerCost} $`;
+                    upgradeSuperMinerBtn.disabled = state.resources.money < superMinerCost;
+                }
+
+                currentPanel.querySelector('#minerStaminaLevelStat').textContent = state.upgrades.minerStaminaLevel;
+                const minerStaminaCost = Math.ceil(250 * Math.pow(1.9, state.upgrades.minerStaminaLevel));
+                currentPanel.querySelector('#upgradeMinerStaminaCost').textContent = `${minerStaminaCost} $`;
+                currentPanel.querySelector('#upgradeMinerStamina').disabled = state.resources.money < minerStaminaCost;
+            }
+
+            const agentTungContainer = currentPanel.querySelector('#agentTungContainer');
+            if (agentTungContainer && state.agents.tung.owned) {
+                const btn = agentTungContainer.querySelector('button');
+                const overlay = btn.querySelector('.cooldown-overlay');
+                if (state.agents.tung.cooldown > 0) {
+                    btn.disabled = true;
+                    overlay.style.opacity = '1';
+                    overlay.querySelector('span').textContent = Math.ceil(state.agents.tung.cooldown);
+                } else {
+                    btn.disabled = false;
+                    overlay.style.opacity = '0';
+                }
+            }
+        }
+        
+        function renderGachaPanel() {
+            const banner = GACHA_BANNERS[state.activeBanner];
+            const contentEl = panelContainer.querySelector('#gacha-banner-content');
+            if (!contentEl) return;
+
+            contentEl.innerHTML = `
+                <h2 class="font-bold text-lg border-b border-slate-600 pb-1 mb-2">${banner.name}</h2>
+                <p class="text-sm text-slate-400 mb-2">Pity Mythical sau: <span id="pity-counter" class="font-bold text-amber-400">${state.stats.pityCounters[state.activeBanner]}</span> lượt.</p>
+                <div class="flex gap-2">
+                    <button id="summon-1" class="btn-primary text-lg">x1 (${banner.cost}$)</button>
+                    <button id="summon-3" class="btn-primary text-lg">x3 (${banner.cost * 3}$)</button>
+                    <button id="summon-5" class="btn-primary text-lg">x5 (${banner.cost * 5}$)</button>
+                </div>
+            `;
+        }
+
+
+        // --- Event Handlers ---
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight;
+            const viewSize = MINE_COLS * 2.0;
+            const halfViewSize = viewSize / 2;
+            camera.left = -halfViewSize * aspect;
+            camera.right = halfViewSize * aspect;
+            camera.top = halfViewSize;
+            camera.bottom = -halfViewSize;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / canvas.clientWidth) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / canvas.clientHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children);
+            if (intersects.length > 0) {
+                const first = intersects[0].object;
+                if (first.userData && first.userData.gridX !== undefined) {
+                    const { gridX, gridY, gridZ } = first.userData;
+                    digBlock(gridX, gridY, gridZ, state.upgrades.clickPower, true, false);
+                }
+            }
+        }
+        
+        function setupPanelToggle(buttonId, templateId) {
+            const button = document.getElementById(buttonId);
+            button.addEventListener('click', () => {
+                if (activePanel === templateId) {
+                    panelContainer.innerHTML = '';
+                    activePanel = null;
+                    Object.values(toggleButtons).forEach(b => b.classList.remove('active'));
+                } else {
+                    const template = document.getElementById(templateId);
+                    panelContainer.innerHTML = '';
+                    panelContainer.appendChild(template.content.cloneNode(true));
+                    activePanel = templateId;
+                    Object.values(toggleButtons).forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+                    updateUI({ fullRender: true });
+                }
+            });
+        }
+
+        function setupEventListeners() {
+            // Event delegation for panels
+            panelContainer.addEventListener('click', (e) => {
+                const button = e.target.closest('button');
+                if (!button) return;
+
+                const { id, dataset } = button;
+
+                if (dataset.banner) {
+                    state.activeBanner = dataset.banner;
+                    panelContainer.querySelectorAll('.banner-tab').forEach(tab => tab.classList.remove('active'));
+                    button.classList.add('active');
+                    renderGachaPanel();
+                    return;
+                }
+
+                if (dataset.heroId) {
+                    toggleEquipHero(dataset.heroId);
+                    return; 
+                }
+
+                switch(id) {
+                    case 'upgradeClick': {
+                        const cost = Math.ceil(15 * Math.pow(1.22, state.upgrades.clickPower - 1));
+                        if (state.resources.money >= cost) { state.resources.money -= cost; state.stats.moneySpent += cost; state.upgrades.clickPower++; updateUI({ fullRender: true }); }
+                        break;
+                    }
+                    case 'upgradeMineMulti': {
+                        const cost = Math.ceil(450 * Math.pow(2.8, state.upgrades.mineMultiLevel));
+                        if(state.resources.money >= cost) { state.resources.money -= cost; state.stats.moneySpent += cost; state.upgrades.mineMultiLevel++; updateUI({ fullRender: true }); }
+                        break;
+                    }
+                    case 'upgradeAutoMine': {
+                        const cost = Math.ceil(80 * Math.pow(2.4, state.upgrades.autoMineLevel));
+                        if(state.resources.money >= cost) { state.resources.money -= cost; state.stats.moneySpent += cost; state.upgrades.autoMineLevel++; updateUI({ fullRender: true }); }
+                        break;
+                    }
+                    case 'hireMiner': {
+                        if (state.upgrades.minerCount < 5) {
+                            const cost = Math.ceil(40 * Math.pow(1.55, state.upgrades.minerCount));
+                            if (state.resources.money >= cost) { state.resources.money -= cost; state.stats.moneySpent += cost; state.upgrades.minerCount++; addMiner(); updateUI({ fullRender: true }); }
+                        }
+                        break;
+                    }
+                    case 'upgradeMinerPower': {
+                        const cost = Math.ceil(150 * Math.pow(1.65, state.upgrades.minerPowerLevel - 1));
+                        if (state.resources.money >= cost) { state.resources.money -= cost; state.stats.moneySpent += cost; state.upgrades.minerPowerLevel++; updateUI({ fullRender: true }); }
+                        break;
+                    }
+                    case 'upgradeSuperMiner': {
+                         if (state.upgrades.superMinerLevel < 5) {
+                            const cost = Math.ceil(1800 * Math.pow(3.8, state.upgrades.superMinerLevel));
+                            if (state.resources.money >= cost) { state.resources.money -= cost; state.stats.moneySpent += cost; state.upgrades.superMinerLevel++; updateUI({ fullRender: true }); }
+                        }
+                        break;
+                    }
+                    case 'upgradeMinerStamina': {
+                        const cost = Math.ceil(250 * Math.pow(1.9, state.upgrades.minerStaminaLevel));
+                        if (state.resources.money >= cost) { state.resources.money -= cost; state.stats.moneySpent += cost; state.upgrades.minerStaminaLevel++; updateUI({ fullRender: true }); }
+                        break;
+                    }
+                    case 'buyAgentTung': {
+                        const cost = 1500;
+                        if (state.resources.money >= cost) {
+                            state.resources.money -= cost;
+                            state.stats.moneySpent += cost;
+                            state.agents.tung.owned = true;
+                            const agentPanelTemplate = document.getElementById('template-agents');
+                            panelContainer.innerHTML = '';
+                            panelContainer.appendChild(agentPanelTemplate.content.cloneNode(true));
+                            updateUI({ fullRender: true });
+                        }
+                        break;
+                    }
+                    case 'useAgentTung':
+                        useAgentTungSkill();
+                        break;
+                    case 'giftcode-submit':
+                        redeemGiftcode();
+                        break;
+                    case 'summon-1': summonHero(1, state.activeBanner); break;
+                    case 'summon-3': summonHero(3, state.activeBanner); break;
+                    case 'summon-5': summonHero(5, state.activeBanner); break;
+                    case 'music-toggle':
+                        toggleMusic();
+                        break;
+                    case 'music-next':
+                        playNextTrack();
+                        break;
+                    case 'debug-audio':
+                        debugAudio();
+                        break;
+                    case 'debug-next':
+                        debugNextTrack();
+                        break;
+                    case 'sfx-toggle':
+                        toggleSFX();
+                        break;
+                }
+            });
+            
+            // Music volume slider
+            panelContainer.addEventListener('input', (e) => {
+                if (e.target.id === 'music-volume') {
+                    const volume = e.target.value / 100;
+                    setMusicVolume(volume);
+                    // Update slider gradient in real-time
+                    const percentage = e.target.value;
+                    e.target.style.background = `linear-gradient(to right, #f59e0b 0%, #f59e0b ${percentage}%, #475569 ${percentage}%, #475569 100%)`;
+                }
+                if (e.target.id === 'sfx-volume') {
+                    const volume = e.target.value / 100;
+                    setSFXVolume(volume);
+                    // Update slider gradient in real-time
+                    const percentage = e.target.value;
+                    e.target.style.background = `linear-gradient(to right, #f59e0b 0%, #f59e0b ${percentage}%, #475569 ${percentage}%, #475569 100%)`;
+                }
+            });
+            
+            // Handle user interaction to enable audio
+            document.addEventListener('click', () => {
+                if (audioContext && audioContext.state === 'suspended') {
+                    console.log('User interaction detected, resuming audio context...');
+                    audioContext.resume().then(() => {
+                        console.log('Audio context resumed from user interaction');
+                        // Try to start music if it should be playing
+                        if (state.music.isPlaying && audioElement && audioElement.paused) {
+                            console.log('Starting music after user interaction...');
+                            playMusic();
+                        }
+                    }).catch(err => {
+                        console.error('Failed to resume audio context from user interaction:', err);
+                    });
+                }
+            }, { once: true });
+            
+            // Also handle any user interaction
+            const enableAudio = () => {
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                if (state.music.isPlaying && audioElement && audioElement.paused) {
+                    playMusic();
+                }
+                // Remove listeners after first interaction
+                document.removeEventListener('click', enableAudio);
+                document.removeEventListener('keydown', enableAudio);
+                document.removeEventListener('touchstart', enableAudio);
+            };
+            
+            document.addEventListener('click', enableAudio);
+            document.addEventListener('keydown', enableAudio);
+            document.addEventListener('touchstart', enableAudio);
+        }
+        
+        function performQuickDig() {
+            let bestTarget = null;
+            let maxNeighbors = -1;
+
+            for (let i = 0; i < mineMeshes[0].length; i++) {
+                const blockMesh = mineMeshes[0][i];
+                if (blockMesh) {
+                    const { gridX, gridZ } = blockMesh.userData;
+                    let currentNeighbors = 0;
+                    for (let dz = -1; dz <= 1; dz++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dz === 0) continue;
+                            const nx = gridX + dx;
+                            const nz = gridZ + dz;
+                            if (nx >= 0 && nx < MINE_COLS && nz >= 0 && nz < MINE_ROWS) {
+                                const neighborIndex = nz * MINE_COLS + nx;
+                                if (mineMeshes[0][neighborIndex]) {
+                                    currentNeighbors++;
+                                }
+                            }
+                        }
+                    }
+                    if (currentNeighbors > maxNeighbors) {
+                        maxNeighbors = currentNeighbors;
+                        bestTarget = blockMesh;
+                    }
+                }
+            }
+            if (bestTarget) {
+                const { gridX, gridZ } = bestTarget.userData;
+                digBlock(gridX, 0, gridZ, state.upgrades.clickPower, true, false);
+            }
+        }
+
+        function useAgentTungSkill() {
+            if (state.agents.tung.cooldown > 0) return;
+            state.agents.tung.cooldown = 60;
+            const centerX = Math.floor(MINE_COLS / 2);
+            const centerZ = Math.floor(MINE_ROWS / 2);
+            const radius = 2; // 5x5 area
+            for (let z = centerZ - radius; z <= centerZ + radius; z++) {
+                for (let x = centerX - radius; x <= centerX + radius; x++) {
+                    if (x >= 0 && x < MINE_COLS && z >= 0 && z < MINE_ROWS) {
+                        digBlock(x, 0, z, Infinity, false, false);
+                    }
+                }
+            }
+            updateUI({ fullRender: true });
+        }
+        
+        function redeemGiftcode() {
+            const input = panelContainer.querySelector('#giftcode-input');
+            const messageEl = panelContainer.querySelector('#giftcode-message');
+            if(!input || !messageEl) return;
+            const code = input.value.toLowerCase().trim();
+            if (code === 'phophuc') {
+                if (state.usedCodes.includes(code)) {
+                    messageEl.textContent = "Code đã được sử dụng!";
+                } else {
+                    state.resources.money += 1000000;
+                    state.stats.moneyEarned += 1000000;
+                    state.usedCodes.push(code);
+                    messageEl.textContent = "Bạn nhận được 1,000,000$!";
+                    updateUI({ fullRender: true });
+                }
+            } else {
+                messageEl.textContent = "Code không hợp lệ!";
+            }
+            input.value = '';
+            setTimeout(() => { if(messageEl) messageEl.textContent = ''; }, 3000);
+        }
+
+        // --- Gacha & Hero Logic ---
+        function summonHero(count = 1, bannerId) {
+            const banner = GACHA_BANNERS[bannerId];
+            if (!banner) return;
+
+            const cost = banner.cost * count;
+            if (state.resources.money < cost) {
+                showNotification("Không đủ tiền!", "error");
+                return;
+            };
+            
+            // Play spin sound
+            playSFX('sound/spin.mp3');
+            
+            state.resources.money -= cost;
+            state.stats.moneySpent += cost;
+            
+            let results = [];
+            let totalRefund = 0;
+
+            for(let i = 0; i < count; i++) {
+                const rand = Math.random();
+                let cumulativeRate = 0;
+                let chosenRarity = null;
+                if (state.stats.pityCounters[bannerId] <= count - i) {
+                    chosenRarity = 'Mythic';
+                    state.stats.pityCounters[bannerId] = 200;
+                } else {
+                    for (const rarity in banner.rates) {
+                        cumulativeRate += banner.rates[rarity];
+                        if (rand < cumulativeRate) {
+                            chosenRarity = rarity;
+                            break;
+                        }
+                    }
+                    state.stats.pityCounters[bannerId]--;
+                }
+                const pool = banner.pool[chosenRarity];
+                const heroId = pool[Math.floor(Math.random() * pool.length)];
+                
+                if (state.heroes.collection.includes(heroId)) {
+                    totalRefund += Math.floor(banner.cost * banner.refundRate);
+                } else {
+                    state.heroes.collection.push(heroId);
+                }
+                results.push(HERO_DATA[heroId]);
+            }
+
+            state.resources.money += totalRefund;
+            showGachaResult(results, totalRefund, bannerId);
+            updateUI({ fullRender: true });
+        }
+
+        function showGachaResult(results, totalRefund, bannerId) {
+            const modal = document.getElementById('gacha-modal');
+            const container = document.getElementById('gacha-result-container');
+            container.innerHTML = `
+                <div class="gacha-reels-container"></div>
+                <div id="gacha-final-result"></div>
+                <p class="text-sm text-slate-500 mt-4 opacity-0" id="gacha-close-message">(Nhấp vào nút Đóng hoặc Quay tiếp)</p>
+            `;
+            const reelsContainer = container.querySelector('.gacha-reels-container');
+            const allHeroes = Object.values(HERO_DATA);
+            const reelHeight = 140; 
+            const spinItemsCount = 30;
+            let longestDuration = 0;
+            results.forEach((result, index) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'gacha-reel-wrapper';
+                wrapper.dataset.heroId = result.id;
+                const reel = document.createElement('div');
+                reel.className = 'gacha-reel';
+                for(let i = 0; i < spinItemsCount; i++) {
+                    const randomHero = allHeroes[Math.floor(Math.random() * allHeroes.length)];
+                    reel.innerHTML += `<img src="${randomHero.image}" alt="${randomHero.name}" onerror="this.onerror=null;this.src='https://placehold.co/140x140/1e293b/94a3b8?text=Error';">`;
+                }
+                reel.innerHTML += `<img src="${result.image}" alt="${result.name}" onerror="this.onerror=null;this.src='https://placehold.co/140x140/1e293b/94a3b8?text=Error';">`;
+                wrapper.appendChild(reel);
+                reelsContainer.appendChild(wrapper);
+                const duration = 2.5 + index * 0.4;
+                if (duration > longestDuration) longestDuration = duration;
+                setTimeout(() => {
+                    reel.style.transition = `transform ${duration}s cubic-bezier(0.25, 1, 0.5, 1)`;
+                    reel.style.transform = `translateY(-${spinItemsCount * reelHeight}px)`;
+                }, 100);
+            });
+            setTimeout(() => {
+                if (totalRefund > 0) {
+                    showNotification(`Được hoàn ${totalRefund}$ từ nhân vật trùng lặp!`, 'info');
+                }
+                const finalResultContainer = document.getElementById('gacha-final-result');
+                const rarityOrder = { Secret: 5, Mythic: 4, Legend: 3, Epic: 2, Rare: 1, Common: 0 };
+                const bestHero = [...results].sort((a, b) => rarityOrder[b.rarity] - rarityOrder[a.rarity])[0];
+                reelsContainer.querySelectorAll('.gacha-reel-wrapper').forEach(reel => {
+                    if (reel.dataset.heroId === bestHero.id) {
+                         reel.classList.add(`highlight-${bestHero.rarity}`);
+                    }
+                });
+                finalResultContainer.innerHTML = `
+                    <div class="final-hero-display">
+                        <img src="${bestHero.image}" alt="${bestHero.name}" class="hero-image object-cover" onerror="this.onerror=null;this.src='https://placehold.co/120x120/1e293b/94a3b8?text=Error';">
+                        <div>
+                            <p class="text-sm text-slate-400">Bạn đã nhận được</p>
+                            <h2 class="text-4xl font-bold rarity-${bestHero.rarity}">${bestHero.name}</h2>
+                            <p class="font-semibold text-lg rarity-${bestHero.rarity}">(${bestHero.rarity})</p>
+                        </div>
+                        <div class="mt-4 flex flex-col sm:flex-row gap-2 w-full">
+                            <button id="gacha-again-1" class="btn-primary text-base flex-1">Quay x1</button>
+                            <button id="gacha-again-3" class="btn-primary text-base flex-1">Quay x3</button>
+                            <button id="gacha-again-5" class="btn-primary text-base flex-1">Quay x5</button>
+                        </div>
+                         <button id="gacha-close" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg mt-2 w-full">Đóng</button>
+                    </div>
+                `;
+                finalResultContainer.classList.add('visible');
+                document.getElementById('gacha-close-message').style.opacity = '1';
+                document.getElementById('gacha-close').addEventListener('click', () => modal.classList.remove('show'));
+                const setupSpinAgainButton = (buttonId, count) => {
+                    const btn = document.getElementById(buttonId);
+                    if (btn) {
+                        const cost = GACHA_BANNERS[bannerId].cost * count;
+                        btn.textContent = `Quay x${count} (${cost}$)`;
+                        btn.disabled = state.resources.money < cost;
+                        btn.addEventListener('click', () => {
+                            if (state.resources.money >= cost) {
+                                modal.classList.remove('show');
+                                setTimeout(() => summonHero(count, bannerId), 300); 
+                            }
+                        });
+                    }
+                };
+                setupSpinAgainButton('gacha-again-1', 1);
+                setupSpinAgainButton('gacha-again-3', 3);
+                setupSpinAgainButton('gacha-again-5', 5);
+            }, (longestDuration + 0.2) * 1000);
+            modal.classList.add('show');
+            modal.onclick = null;
+        }
+
+        function toggleEquipHero(heroId) {
+            const index = state.heroes.equipped.indexOf(heroId);
+            if (index > -1) {
+                state.heroes.equipped.splice(index, 1);
+            } else {
+                if (state.heroes.equipped.length < 3) {
+                    state.heroes.equipped.push(heroId);
+                } else {
+                    showNotification("Bạn chỉ có thể trang bị tối đa 3 hero!", "error");
+                }
+            }
+            updateUI({ fullRender: true }); 
+        }
+
+        // --- Game Loops ---
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            if (state.upgrades.autoMineLevel > 0) {
+                autoMineTimer -= delta;
+                if (autoMineTimer <= 0) {
+                    const digsPerSecond = 1.3 * state.upgrades.autoMineLevel;
+                    autoMineTimer = 1 / digsPerSecond;
+
+                    const maxIndex = MINE_ROWS * MINE_COLS;
+                    let attempts = 0;
+                    while(attempts < maxIndex) {
+                        const x = autoMineTargetIndex % MINE_COLS;
+                        const z = Math.floor(autoMineTargetIndex / MINE_COLS);
+                        const mesh = mineMeshes[0][autoMineTargetIndex];
+                        
+                        autoMineTargetIndex = (autoMineTargetIndex + 1) % maxIndex;
+
+                        if (mesh) {
+                            digBlock(x, 0, z, state.upgrades.clickPower, true, false);
+                            break; 
+                        }
+                        attempts++;
+                    }
+                }
+            }
+
+
+            if (state.agents.tung.cooldown > 0) {
+                state.agents.tung.cooldown -= delta;
+                if (state.agents.tung.owned && activePanel === 'template-agents') {
+                    updateUI({ fullRender: false });
+                }
+            }
+            visualMiners.forEach(miner => {
+                const minerState = miner.state;
+                if (minerState === 'IDLE') {
+                    const availableBlocks = mineMeshes[0].filter(Boolean);
+                    if (availableBlocks.length > 0) {
+                        miner.target = availableBlocks[Math.floor(Math.random() * availableBlocks.length)];
+                        miner.state = 'MOVING';
+                    }
+                } else if (minerState === 'MOVING') {
+                    if (!miner.target || !scene.children.includes(miner.target)) {
+                        miner.state = 'IDLE';
+                        return;
+                    }
+                    const speedMultiplier = 3 + state.upgrades.minerStaminaLevel * 0.5;
+                    const targetPos = new THREE.Vector3(miner.target.position.x, 0.5, miner.target.position.z);
+                    miner.mesh.position.lerp(targetPos, delta * speedMultiplier);
+                    if (miner.mesh.position.distanceTo(targetPos) < 0.1) {
+                        miner.state = 'DIGGING';
+                        miner.digTimer = 1 / (1.3 + state.upgrades.minerStaminaLevel * 0.3);
+                    }
+                } else if (minerState === 'DIGGING') {
+                    if (!miner.target || !scene.children.includes(miner.target)) {
+                        miner.state = 'IDLE';
+                        return;
+                    }
+                    miner.digTimer -= delta;
+                    miner.mesh.position.y = 0.5 + Math.sin(clock.getElapsedTime() * 20) * 0.1;
+                    if (miner.digTimer <= 0) {
+                        const { gridX, gridY, gridZ } = miner.target.userData;
+                        const isSuper = state.upgrades.superMinerLevel > 0;
+                        digBlock(gridX, gridY, gridZ, state.upgrades.minerPowerLevel, false, isSuper);
+                        miner.digTimer = 1 / (1.3 + state.upgrades.minerStaminaLevel * 0.3);
+                        const stamina = 5 - state.upgrades.minerStaminaLevel * 0.5;
+                        if (Math.random() < 1 / Math.max(1, stamina)) {
+                            miner.state = 'RESTING';
+                            miner.restTimer = Math.max(0.5, 3 - state.upgrades.minerStaminaLevel * 0.5);
+                        }
+                    }
+                } else if (minerState === 'RESTING') {
+                    miner.restTimer -= delta;
+                    miner.mesh.position.y = 0.5;
+                    if (miner.restTimer <= 0) miner.state = 'IDLE';
+                }
+            });
+            for (let i = shrinkingBlocks.length - 1; i >= 0; i--) {
+                const block = shrinkingBlocks[i];
+                block.scale.multiplyScalar(0.9);
+                if (block.scale.x < 0.01) { scene.remove(block); shrinkingBlocks.splice(i, 1); }
+            }
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.addScaledVector(p.velocity, delta);
+                p.lifetime -= delta;
+                if (p.lifetime <= 0) { scene.remove(p); particles.splice(i, 1); }
+            }
+            scene.children.forEach(child => {
+                if (child.isMesh && child.userData.gridX !== undefined) {
+                    if (child.userData.targetYScale !== undefined && child.scale.y !== child.userData.targetYScale) {
+                        child.scale.y = THREE.MathUtils.lerp(child.scale.y, child.userData.targetYScale, delta * 15);
+                        const originalY = -child.userData.gridY * BLOCK_SIZE;
+                        child.position.y = originalY - (BLOCK_SIZE * (1 - child.scale.y)) / 2;
+                    }
+                    if (child.userData.targetYPosition !== undefined && Math.abs(child.position.y - child.userData.targetYPosition) > 0.01) {
+                        child.position.y = THREE.MathUtils.lerp(child.position.y, child.userData.targetYPosition, delta * 8);
+                    } else if (child.userData.targetYPosition !== undefined) {
+                         child.position.y = child.userData.targetYPosition;
+                    }
+                    if(child.userData.isFlashing) {
+                        child.userData.flashTime -= delta;
+                        if(child.userData.flashTime <= 0) {
+                            if (child.material.emissive) {
+                                child.material.emissive.setHex(0x000000);
+                            }
+                            child.userData.isFlashing = false;
+                        }
+                    }
+                }
+            });
+            renderer.render(scene, camera);
+        }
+
+        // --- Initialization ---
+        window.onload = function() {
+            moneyEl = document.getElementById('money');
+            canvas = document.getElementById('game-canvas');
+            panelContainer = document.getElementById('panel-container');
+            notificationContainer = document.getElementById('notification-container');
+            toggleButtons = {
+                player: document.getElementById('toggle-player'),
+                miners: document.getElementById('toggle-miners'),
+                agents: document.getElementById('toggle-agents'),
+                stats: document.getElementById('toggle-stats'),
+                gacha: document.getElementById('toggle-gacha'),
+                heroes: document.getElementById('toggle-heroes'),
+            };
+            const quickDigBtn = document.getElementById('quickDigBtn');
+            if (quickDigBtn) {
+                quickDigBtn.addEventListener('click', performQuickDig);
+            }
+            initThreeJS();
+            initializeMine();
+            setupPanelToggle('toggle-player', 'template-player');
+            setupPanelToggle('toggle-miners', 'template-miners');
+            setupPanelToggle('toggle-agents', 'template-agents');
+            setupPanelToggle('toggle-stats', 'template-stats');
+            setupPanelToggle('toggle-gacha', 'template-gacha');
+            setupPanelToggle('toggle-heroes', 'template-heroes');
+            setupEventListeners();
+            updateUI({ fullRender: true });
+            onWindowResize();
+            animate();
+            initAudio();
+            initSFX();
+            setInterval(() => {
+                state.stats.timePlayed++;
+                if(activePanel === 'template-stats') {
+                    updateUI({ fullRender: true });
+                }
+            }, 1000);
+        }
+
+        // --- Audio Functions ---
+        function initAudio() {
+            try {
+                console.log('Initializing audio system...');
+                
+                // Load saved music settings first
+                loadMusicSettings();
+                
+                // Create audio context with better error handling
+                if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log('Audio context created:', audioContext.state);
+                } else {
+                    console.log('Web Audio API not supported, using fallback');
+                    initAudioFallback();
+                    return;
+                }
+                
+                // Create audio element
+                audioElement = new Audio();
+                audioElement.preload = 'auto';
+                audioElement.crossOrigin = 'anonymous';
+                
+                // Create gain node for volume control
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = state.music.volume;
+                
+                // Connect audio nodes
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                console.log('Audio nodes connected successfully');
+                
+                // Handle track ending
+                audioElement.addEventListener('ended', () => {
+                    console.log('Track ended, playing next...');
+                    playNextTrack();
+                });
+                
+                // Handle audio errors
+                audioElement.addEventListener('error', (e) => {
+                    console.error('Audio error:', e);
+                    // Try next track on error
+                    setTimeout(() => playNextTrack(), 1000);
+                });
+                
+                // Handle audio loading
+                audioElement.addEventListener('loadstart', () => console.log('Audio loading started'));
+                audioElement.addEventListener('canplay', () => console.log('Audio can play'));
+                audioElement.addEventListener('playing', () => console.log('Audio is playing'));
+                
+                // Start playing music if it was playing before
+                if (state.music.isPlaying) {
+                    console.log('Resuming previous music state...');
+                    setTimeout(() => playMusic(), 100);
+                } else {
+                    console.log('Music was not playing before, starting fresh...');
+                    // Start playing by default
+                    state.music.isPlaying = true;
+                    setTimeout(() => playMusic(), 100);
+                }
+                
+            } catch (error) {
+                console.error('Failed to initialize audio:', error);
+                console.log('Falling back to simple audio...');
+                initAudioFallback();
+            }
+        }
+        
+        function initAudioFallback() {
+            try {
+                console.log('Initializing fallback audio system...');
+                
+                // Simple audio element without Web Audio API
+                audioElement = new Audio();
+                audioElement.preload = 'auto';
+                audioElement.volume = state.music.volume;
+                
+                // Handle track ending
+                audioElement.addEventListener('ended', () => {
+                    console.log('Track ended (fallback), playing next...');
+                    playNextTrack();
+                });
+                
+                // Handle audio errors
+                audioElement.addEventListener('error', (e) => {
+                    console.error('Audio error (fallback):', e);
+                    setTimeout(() => playNextTrack(), 1000);
+                });
+                
+                // Start playing
+                if (state.music.isPlaying) {
+                    setTimeout(() => playMusicFallback(), 100);
+                } else {
+                    state.music.isPlaying = true;
+                    setTimeout(() => playMusicFallback(), 100);
+                }
+                
+            } catch (error) {
+                console.error('Failed to initialize fallback audio:', error);
+            }
+        }
+        
+        function playMusicFallback() {
+            if (!audioElement) return;
+            
+            try {
+                const trackPath = state.music.tracks[state.music.currentTrack];
+                console.log('Loading track (fallback):', trackPath);
+                
+                // Set new source
+                audioElement.src = trackPath;
+                audioElement.volume = state.music.volume;
+                audioElement.load();
+                
+                // Wait for audio to be ready
+                audioElement.addEventListener('canplay', function onCanPlay() {
+                    audioElement.removeEventListener('canplay', onCanPlay);
+                    
+                    const playPromise = audioElement.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log('Music started playing (fallback)');
+                            state.music.isPlaying = true;
+                            updateMusicUI();
+                        }).catch(error => {
+                            console.error('Failed to play music (fallback):', error);
+                            setTimeout(() => playNextTrack(), 1000);
+                        });
+                    }
+                }, { once: true });
+                
+                // Handle loading errors
+                audioElement.addEventListener('error', function onError(e) {
+                    audioElement.removeEventListener('error', onError);
+                    console.error('Audio loading error (fallback):', e);
+                    setTimeout(() => playNextTrack(), 1000);
+                }, { once: true });
+                
+            } catch (error) {
+                console.error('Error in playMusicFallback:', error);
+            }
+        }
+        
+        function playMusic() {
+            if (!audioElement) {
+                console.log('Audio element not available');
+                return;
+            }
+            
+            if (state.music.isPlaying && !audioElement.paused) {
+                console.log('Music is already playing');
+                return;
+            }
+            
+            try {
+                console.log('Attempting to play music...');
+                console.log('Current track:', state.music.tracks[state.music.currentTrack]);
+                
+                // Resume audio context if suspended
+                if (audioContext && audioContext.state === 'suspended') {
+                    console.log('Resuming suspended audio context...');
+                    audioContext.resume().then(() => {
+                        console.log('Audio context resumed');
+                        loadAndPlayTrack();
+                    }).catch(err => {
+                        console.error('Failed to resume audio context:', err);
+                    });
+                } else {
+                    loadAndPlayTrack();
+                }
+                
+            } catch (error) {
+                console.error('Error in playMusic:', error);
+            }
+        }
+        
+        function loadAndPlayTrack() {
+            try {
+                const trackPath = state.music.tracks[state.music.currentTrack];
+                console.log('Loading track:', trackPath);
+                
+                // Set new source
+                audioElement.src = trackPath;
+                audioElement.load();
+                
+                // Wait for audio to be ready
+                audioElement.addEventListener('canplay', function onCanPlay() {
+                    audioElement.removeEventListener('canplay', onCanPlay);
+                    
+                    // Try to play the audio
+                    const playPromise = audioElement.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log('Music started playing successfully');
+                            state.music.isPlaying = true;
+                            updateMusicUI();
+                        }).catch(error => {
+                            console.error('Failed to play music:', error);
+                            
+                            // Handle specific error cases
+                            if (error.name === 'NotAllowedError') {
+                                console.log('User interaction required to play audio');
+                                // Don't set isPlaying to true, let user click to start
+                            } else if (error.name === 'NotSupportedError') {
+                                console.log('Audio format not supported, trying next track');
+                                setTimeout(() => playNextTrack(), 1000);
+                            } else {
+                                console.log('Unknown error, trying next track');
+                                setTimeout(() => playNextTrack(), 1000);
+                            }
+                        });
+                    }
+                }, { once: true });
+                
+                // Handle loading errors
+                audioElement.addEventListener('error', function onError(e) {
+                    audioElement.removeEventListener('error', onError);
+                    console.error('Audio loading error:', e);
+                    setTimeout(() => playNextTrack(), 1000);
+                }, { once: true });
+                
+            } catch (error) {
+                console.error('Error in loadAndPlayTrack:', error);
+            }
+        }
+        
+        function playNextTrack() {
+            if (!audioElement) {
+                console.log('Audio element not available for next track');
+                return;
+            }
+            
+            console.log('=== PLAYING NEXT TRACK ===');
+            console.log('Before change - Current track:', state.music.currentTrack);
+            console.log('Audio paused:', audioElement.paused);
+            console.log('Audio current time:', audioElement.currentTime);
+            
+            // Stop current audio first
+            audioElement.pause();
+            audioElement.currentTime = 0;
+            console.log('Audio stopped and reset');
+            
+            // Move to next track
+            state.music.currentTrack = (state.music.currentTrack + 1) % state.music.tracks.length;
+            console.log('After change - Current track:', state.music.currentTrack);
+            console.log('New track path:', state.music.tracks[state.music.currentTrack]);
+            
+            // Show notification
+            const trackNames = ['Track 1', 'Track 2', 'Track 3'];
+            showNotification(`Đang phát: ${trackNames[state.music.currentTrack]}`, 'info');
+            
+            // Force play the new track
+            setTimeout(() => {
+                console.log('Starting to load new track...');
+                if (gainNode) {
+                    // Web Audio API mode
+                    console.log('Using Web Audio API mode');
+                    loadAndPlayTrack();
+                } else {
+                    // Fallback mode
+                    console.log('Using fallback mode');
+                    playMusicFallback();
+                }
+            }, 100);
+        }
+        
+        function setMusicVolume(volume) {
+            state.music.volume = Math.max(0, Math.min(1, volume));
+            if (gainNode) {
+                gainNode.gain.value = state.music.volume;
+            }
+            if (audioElement && !gainNode) {
+                // Fallback mode - set volume directly on audio element
+                audioElement.volume = state.music.volume;
+            }
+            updateMusicUI();
+            saveMusicSettings();
+        }
+        
+        function toggleMusic() {
+            if (!audioElement) {
+                console.log('Audio element not available for toggle');
+                return;
+            }
+            
+            console.log('Toggling music, current state:', state.music.isPlaying);
+            
+            if (state.music.isPlaying) {
+                // Pause music
+                audioElement.pause();
+                state.music.isPlaying = false;
+                console.log('Music paused');
+            } else {
+                // Resume/start music
+                if (audioElement.paused) {
+                    console.log('Resuming paused music...');
+                    const playPromise = audioElement.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log('Music resumed successfully');
+                            state.music.isPlaying = true;
+                            updateMusicUI();
+                            saveMusicSettings();
+                        }).catch(error => {
+                            console.error('Failed to resume music:', error);
+                            // If resume fails, try to start fresh
+                            playMusic();
+                        });
+                    }
+                } else {
+                    console.log('Starting fresh music...');
+                    playMusic();
+                }
+            }
+            
+            updateMusicUI();
+            saveMusicSettings();
+        }
+        
+        function updateMusicUI() {
+            const volumeSlider = document.getElementById('music-volume');
+            const musicToggleBtn = document.getElementById('music-toggle');
+            const volumeDisplay = document.getElementById('music-volume-display');
+            const audioStatus = document.getElementById('audio-status');
+            const sfxVolumeSlider = document.getElementById('sfx-volume');
+            const sfxToggleBtn = document.getElementById('sfx-toggle');
+            const sfxVolumeDisplay = document.getElementById('sfx-volume-display');
+            
+            if (volumeSlider) {
+                volumeSlider.value = state.music.volume * 100;
+                // Update slider gradient
+                const percentage = state.music.volume * 100;
+                volumeSlider.style.background = `linear-gradient(to right, #f59e0b 0%, #f59e0b ${percentage}%, #475569 ${percentage}%, #475569 100%)`;
+            }
+            
+            if (musicToggleBtn) {
+                musicToggleBtn.textContent = state.music.isPlaying ? '🔊' : '🔇';
+                musicToggleBtn.title = state.music.isPlaying ? 'Tắt nhạc' : 'Bật nhạc';
+            }
+            
+            if (volumeDisplay) {
+                volumeDisplay.textContent = Math.round(state.music.volume * 100) + '%';
+            }
+            
+            if (sfxVolumeSlider) {
+                sfxVolumeSlider.value = state.music.sfxVolume * 100;
+                // Update SFX slider gradient
+                const sfxPercentage = state.music.sfxVolume * 100;
+                sfxVolumeSlider.style.background = `linear-gradient(to right, #f59e0b 0%, #f59e0b ${sfxPercentage}%, #475569 ${sfxPercentage}%, #475569 100%)`;
+            }
+            
+            if (sfxToggleBtn) {
+                sfxToggleBtn.textContent = state.music.sfxEnabled ? '🔊' : '🔇';
+                sfxToggleBtn.title = state.music.sfxEnabled ? 'Tắt hiệu ứng' : 'Bật hiệu ứng';
+            }
+            
+            if (sfxVolumeDisplay) {
+                sfxVolumeDisplay.textContent = Math.round(state.music.sfxVolume * 100) + '%';
+            }
+            
+            if (audioStatus) {
+                let status = '';
+                if (!audioContext) {
+                    status = 'Audio context: Không khả dụng';
+                } else if (audioContext.state === 'suspended') {
+                    status = 'Audio context: Đã tạm dừng (cần tương tác)';
+                } else if (audioContext.state === 'running') {
+                    status = 'Audio context: Đang chạy';
+                } else {
+                    status = `Audio context: ${audioContext.state}`;
+                }
+                
+                if (audioElement) {
+                    status += ` | Audio: ${audioElement.paused ? 'Tạm dừng' : 'Đang phát'}`;
+                    status += ` | Track: ${state.music.currentTrack + 1}/${state.music.tracks.length}`;
+                }
+                
+                status += ` | SFX: ${state.music.sfxEnabled ? 'Bật' : 'Tắt'}`;
+                
+                audioStatus.textContent = status;
+            }
+        }
+        
+        function saveMusicSettings() {
+            try {
+                localStorage.setItem('minerMusicSettings', JSON.stringify({
+                    volume: state.music.volume,
+                    isPlaying: state.music.isPlaying,
+                    sfxVolume: state.music.sfxVolume,
+                    sfxEnabled: state.music.sfxEnabled
+                }));
+            } catch (error) {
+                console.log('Failed to save music settings:', error);
+            }
+        }
+        
+        function loadMusicSettings() {
+            try {
+                const saved = localStorage.getItem('minerMusicSettings');
+                if (saved) {
+                    const settings = JSON.parse(saved);
+                    state.music.volume = settings.volume || 0.18;
+                    state.music.isPlaying = settings.isPlaying !== undefined ? settings.isPlaying : true;
+                    state.music.sfxVolume = settings.sfxVolume || 0.5;
+                    state.music.sfxEnabled = settings.sfxEnabled !== undefined ? settings.sfxEnabled : true;
+                }
+            } catch (error) {
+                console.log('Failed to load music settings:', error);
+            }
+        }
+        
+        function debugAudio() {
+            console.log('=== AUDIO DEBUG INFO ===');
+            console.log('Audio Context:', audioContext);
+            if (audioContext) {
+                console.log('Audio Context State:', audioContext.state);
+            }
+            console.log('Audio Element:', audioElement);
+            if (audioElement) {
+                console.log('Audio Paused:', audioElement.paused);
+                console.log('Audio Current Time:', audioElement.currentTime);
+                console.log('Audio Duration:', audioElement.duration);
+                console.log('Audio Src:', audioElement.src);
+                console.log('Audio Ready State:', audioElement.readyState);
+            }
+            console.log('Music State:', state.music);
+            console.log('Current Track:', state.music.tracks[state.music.currentTrack]);
+            console.log('========================');
+            
+            // Try to force play
+            if (audioContext && audioContext.state === 'suspended') {
+                console.log('Attempting to resume audio context...');
+                audioContext.resume().then(() => {
+                    console.log('Audio context resumed successfully');
+                    if (state.music.isPlaying) {
+                        playMusic();
+                    }
+                });
+            }
+        }
+        
+        function debugNextTrack() {
+            console.log('=== NEXT TRACK DEBUG ===');
+            console.log('Current track index:', state.music.currentTrack);
+            console.log('Total tracks:', state.music.tracks.length);
+            console.log('Next track will be:', (state.music.currentTrack + 1) % state.music.tracks.length);
+            console.log('Audio element exists:', !!audioElement);
+            if (audioElement) {
+                console.log('Audio paused:', audioElement.paused);
+                console.log('Audio current time:', audioElement.currentTime);
+                console.log('Audio src:', audioElement.src);
+            }
+            console.log('========================');
+        }
+        
+        function initSFX() {
+            try {
+                console.log('Initializing SFX system...');
+                
+                // Create SFX audio context
+                if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+                    sfxContext = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log('SFX context created:', sfxContext.state);
+                } else {
+                    console.log('Web Audio API not supported for SFX');
+                    return;
+                }
+                
+                // Create SFX audio element
+                sfxElement = new Audio();
+                sfxElement.preload = 'auto';
+                sfxElement.crossOrigin = 'anonymous';
+                
+                // Create SFX gain node for volume control
+                sfxGainNode = sfxContext.createGain();
+                sfxGainNode.gain.value = state.music.sfxVolume;
+                
+                // Connect SFX audio nodes
+                const sfxSource = sfxContext.createMediaElementSource(sfxElement);
+                sfxSource.connect(sfxGainNode);
+                sfxGainNode.connect(sfxContext.destination);
+                
+                console.log('SFX nodes connected successfully');
+                
+            } catch (error) {
+                console.error('Failed to initialize SFX:', error);
+            }
+        }
+        
+        function playSFX(soundFile) {
+            if (!sfxElement || !state.music.sfxEnabled) {
+                console.log('SFX not available or disabled');
+                return;
+            }
+            
+            try {
+                console.log('Playing SFX:', soundFile);
+                
+                // Resume SFX context if suspended
+                if (sfxContext && sfxContext.state === 'suspended') {
+                    sfxContext.resume().then(() => {
+                        loadAndPlaySFX(soundFile);
+                    }).catch(err => {
+                        console.error('Failed to resume SFX context:', err);
+                    });
+                } else {
+                    loadAndPlaySFX(soundFile);
+                }
+                
+            } catch (error) {
+                console.error('Error playing SFX:', error);
+            }
+        }
+        
+        function loadAndPlaySFX(soundFile) {
+            try {
+                console.log('Loading SFX:', soundFile);
+                
+                // Set new source
+                sfxElement.src = soundFile;
+                sfxElement.load();
+                
+                // Wait for audio to be ready
+                sfxElement.addEventListener('canplay', function onCanPlay() {
+                    sfxElement.removeEventListener('canplay', onCanPlay);
+                    
+                    // Try to play the SFX
+                    const playPromise = sfxElement.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log('SFX started playing successfully');
+                        }).catch(error => {
+                            console.error('Failed to play SFX:', error);
+                        });
+                    }
+                }, { once: true });
+                
+                // Handle loading errors
+                sfxElement.addEventListener('error', function onError(e) {
+                    sfxElement.removeEventListener('error', onError);
+                    console.error('SFX loading error:', e);
+                }, { once: true });
+                
+            } catch (error) {
+                console.error('Error in loadAndPlaySFX:', error);
+            }
+        }
+        
+        function setSFXVolume(volume) {
+            state.music.sfxVolume = Math.max(0, Math.min(1, volume));
+            if (sfxGainNode) {
+                sfxGainNode.gain.value = state.music.sfxVolume;
+            }
+            updateMusicUI();
+            saveMusicSettings();
+        }
+        
+        function toggleSFX() {
+            state.music.sfxEnabled = !state.music.sfxEnabled;
+            updateMusicUI();
+            saveMusicSettings();
+        }
+    </script>
+</body>
+</html>
