@@ -48,6 +48,7 @@ let defaultState = {
         currentTrack: 0,
         isPlaying: false,
         volume: 0.16,
+        loopSingleTrack: false, // New: state for looping current track
         tracks: [
             { name: 'Track 1', file: 'music/track-1.mp3' },
             { name: 'Track 2', file: 'music/track-2.mp3' },
@@ -135,22 +136,22 @@ const HERO_DATA = {
 const GACHA_BANNERS = {
     hyper: {
         id: 1, name: "Banner 1: Hyper - Dành cho newbie", cost: 1000, refundRate: 0.2,
-        rates: { Common: 0.66, Rare: 0.22, Epic: 0.078, Legend: 0.03, Mythic: 0.01, Secret: 0.002 },
+        rates: { Common: 0.90, Rare: 0.095, Epic: 0.004, Legend: 0.0009, Mythic: 0.00009, Secret: 0.00001 },
         pool: { Common: ['naruto', 'nobara'], Rare: ['sukuna', 'kakashi'], Epic: ['itadori'], Legend: ['yuta'], Mythic: ['gojo'], Secret: ['megumi'] }
     },
     allstars: {
         id: 2, name: "Banner 2: All Stars", cost: 50000, refundRate: 0.2,
-        rates: { Common: 0.66, Rare: 0.22, Epic: 0.078, Legend: 0.03, Mythic: 0.01, Secret: 0.002 },
+        rates: { Common: 0.90, Rare: 0.095, Epic: 0.004, Legend: 0.0009, Mythic: 0.00009, Secret: 0.00001 },
         pool: { Common: ['itachi', 'nanami'], Rare: ['zoro', 'bakugo'], Epic: ['jinwoo'], Legend: ['levi'], Mythic: ['luffy'], Secret: ['goku'] }
     },
     ultimate: {
         id: 3, name: "Banner 3: Ultimate Saga", cost: 250000, refundRate: 0.2,
-        rates: { Common: 0.656, Rare: 0.22, Epic: 0.08, Legend: 0.03, Mythic: 0.012, Secret: 0.002 },
+        rates: { Common: 0.90, Rare: 0.095, Epic: 0.004, Legend: 0.0009, Mythic: 0.00009, Secret: 0.00001 },
         pool: { Common: ['inosuke', 'vegeta'], Rare: ['sanji'], Epic: ['ichigo'], Legend: ['saitama', 'rimuru'], Mythic: ['rengoku'], Secret: ['zenitsu'] }
     },
     titanEra: {
         id: 4, name: "Banner 4: Thời đại Titan", cost: 1250000, refundRate: 0.2, // Updated cost to 1,250,000
-        rates: { Common: 0.60, Rare: 0.25, Epic: 0.09, Legend: 0.04, Mythic: 0.015, Secret: 0.005 },
+        rates: { Common: 0.90, Rare: 0.095, Epic: 0.004, Legend: 0.0009, Mythic: 0.00009, Secret: 0.00001 },
         pool: { 
             Common: ['jean', 'marlo'], 
             Rare: ['hange', 'kenny', 'bertholt'], 
@@ -697,6 +698,23 @@ function renderMusicPanel() {
     if (volumeSlider) {
         volumeSlider.value = state.music.volume * 100;
     }
+
+    // Update loop single track button state
+    const loopOnIcon = panel.querySelector('#loop-on-icon');
+    const loopOffIcon = panel.querySelector('#loop-off-icon');
+    const loopButton = panel.querySelector('#music-loop-single');
+
+    if (loopOnIcon && loopOffIcon && loopButton) {
+        if (state.music.loopSingleTrack) {
+            loopOnIcon.style.display = 'block';
+            loopOffIcon.style.display = 'none';
+            loopButton.classList.add('active'); // Highlight if active
+        } else {
+            loopOnIcon.style.display = 'none';
+            loopOffIcon.style.display = 'block';
+            loopButton.classList.remove('active'); // Remove highlight if inactive
+        }
+    }
     
     const trackList = panel.querySelector('#track-list');
     if (trackList) {
@@ -863,11 +881,16 @@ function setupPanelToggle(buttonId, templateId) {
 // --- Music Functions ---
 function initMusicPlayer() {
     audioPlayer = new Audio();
-    audioPlayer.loop = true;
+    // Loop property is now controlled by state.music.loopSingleTrack
+    audioPlayer.loop = state.music.loopSingleTrack; 
     audioPlayer.volume = state.music.volume;
     
     audioPlayer.addEventListener('ended', () => {
-        nextTrack();
+        // If single track loop is off, advance to next track in playlist
+        if (!state.music.loopSingleTrack) {
+            nextTrack();
+        }
+        // If loopSingleTrack is true, audioPlayer.loop property handles repetition
     });
     
     loadTrack(state.music.currentTrack);
@@ -913,6 +936,10 @@ function pauseTrack() {
 }
 
 function nextTrack() {
+    // Only advance if not in single track loop mode
+    if (state.music.loopSingleTrack) {
+        return; 
+    }
     const nextIndex = (state.music.currentTrack + 1) % state.music.tracks.length;
     loadTrack(nextIndex);
     if (state.music.isPlaying) {
@@ -921,7 +948,11 @@ function nextTrack() {
 }
 
 function prevTrack() {
-    const prevIndex = state.music.currentTrack === 0 ? state.music.tracks.length - 1 : state.music.tracks.length - 1;
+    // Only go back if not in single track loop mode
+    if (state.music.loopSingleTrack) {
+        return;
+    }
+    const prevIndex = state.music.currentTrack === 0 ? state.music.tracks.length - 1 : state.music.currentTrack - 1;
     loadTrack(prevIndex);
     if (state.music.isPlaying) {
         playTrack();
@@ -932,6 +963,16 @@ function setVolume(volume) {
     state.music.volume = volume;
     if (audioPlayer) {
         audioPlayer.volume = volume;
+    }
+    if (activePanel === 'template-music') {
+        renderMusicPanel();
+    }
+}
+
+function toggleSingleTrackLoop() {
+    state.music.loopSingleTrack = !state.music.loopSingleTrack;
+    if (audioPlayer) {
+        audioPlayer.loop = state.music.loopSingleTrack;
     }
     if (activePanel === 'template-music') {
         renderMusicPanel();
@@ -1012,6 +1053,7 @@ function setupEventListeners() {
                     break;
                 case 'music-next': nextTrack(); break;
                 case 'music-prev': prevTrack(); break;
+                case 'music-loop-single': toggleSingleTrackLoop(); break; // New: loop single track button
                 case 'save-game-btn': saveState(true); break; // true for manual save notification
                 case 'reset-game-btn': 
                     showConfirmationModal("Bạn có chắc chắn muốn reset game? Mọi tiến trình sẽ bị mất vĩnh viễn.", resetState);
@@ -1853,10 +1895,8 @@ window.onload = function() {
     animate();
 
     // Main game loop for stats and saving
-    // Removed setInterval for timePlayed as it's now updated in animate()
     if (saveInterval) clearInterval(saveInterval);
     saveInterval = setInterval(() => {
-        // state.stats.timePlayed++; // This line is now removed
         if(activePanel === 'template-stats') renderStatsPanel();
         saveState(); // Auto-save
     }, 30000); // Save every 30 seconds
