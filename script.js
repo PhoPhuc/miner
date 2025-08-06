@@ -1094,14 +1094,16 @@ function redeemGiftcode() {
     const messageEl = panelContainer.querySelector('#giftcode-message');
     if(!input || !messageEl) return;
     const code = input.value.toLowerCase().trim();
-    if (code === 'phophuc') {
+    const rewardAmount = 2500000; // 2.5 triệu
+    
+    if (code === 'phophuc' || code === 'kidcat') { // Check for both codes
         if (state.usedCodes.includes(code)) {
             messageEl.textContent = "Code đã được sử dụng!";
         } else {
-            state.resources.money += 25000000;
-            state.stats.moneyEarned += 25000000;
+            state.resources.money += rewardAmount;
+            state.stats.moneyEarned += rewardAmount;
             state.usedCodes.push(code);
-            messageEl.textContent = `Bạn nhận được ${formatMoney(25000000)}$!`;
+            messageEl.textContent = `Bạn nhận được ${formatMoney(rewardAmount)}$!`;
             updateUI({ fullRender: true });
         }
     } else {
