@@ -7,11 +7,12 @@ let audioPlayer = null;
 let defaultState = {
     resources: { money: 200000 },
     stats: { 
-        timePlayed: 0,
+        timePlayed: 0, // Changed to float for more accurate time tracking
         blocksMined: 0,
         moneyEarned: 0,
         moneySpent: 0,
         minedBlockCounts: {},
+        gachaPulls: 0, // New stat: total gacha pulls
         pityCounters: {
             hyper: 80,
             allstars: 80,
@@ -105,7 +106,7 @@ const HERO_DATA = {
     nanami: { id: 'nanami', name: 'Nanami', rarity: 'Common', image: 'https://i.pinimg.com/736x/d2/b2/90/d2b290e8cf7898eefdd64b68ae477849.jpg', bonusType: 'flat', bonusValue: 17, bonusText: '+17$ mỗi khối' },
     zoro: { id: 'zoro', name: 'Zoro', rarity: 'Rare', image: 'https://i.pinimg.com/736x/f0/71/dc/f071dc841f593eb7af5b9aed7dd2aaac.jpg', bonusType: 'flat', bonusValue: 25, bonusText: '+25$ mỗi khối' },
     bakugo: { id: 'bakugo', name: 'Bakugo', rarity: 'Rare', image: 'https://i.pinimg.com/736x/03/4a/a7/034aa76d0892d3f421f25ed8116d186f.jpg', bonusType: 'flat', bonusValue: 28, bonusText: '+28$ mỗi khối' },
-    'jinwoo': { id: 'jinwoo', name: 'Jin Woo', rarity: 'Epic', image: 'https://img.asmedia.epimg.net/resizer/v2/CQQFFTMTVFAWRGOUSQWHFR4CLY.png?auth=ceff9904f42b7a9c324f2b49ed90b343dfcf411d9688e66ad081acb3197af62a&width=1200&height=1200&smart=true', bonusType: 'flat', bonusValue: 40, bonusText: '+40$ mỗi khối' },
+    'jinwoo': { id: 'jinwoo', name: 'Jin Woo', rarity: 'Epic', image: 'https://img.asmedia.epimg.net/resizer/v2/CQQFFTMTVFAWRGOUSQWHFR4CLY.png?auth=ceff9904f42b7a9c324f2b49ed90b343dfcf411d9688e66ad081acb3192af62a&width=1200&height=1200&smart=true', bonusType: 'flat', bonusValue: 40, bonusText: '+40$ mỗi khối' },
     levi: { id: 'levi', name: 'Levi', rarity: 'Legend', image: 'https://static.wikia.nocookie.net/shingekinokyojin/images/0/0a/Levi_Ackermann_%28Anime%29_character_image_%28854%29.png/revision/latest?cb=20231106070611', bonusType: 'flat', bonusValue: 60, bonusText: '+60$ mỗi khối' },
     luffy: { id: 'luffy', name: 'Luffy', rarity: 'Mythic', image: 'https://i.redd.it/shigaraki-vs-luffy-who-wins-v0-pct4a10f4yve1.jpg?width=1920&format=pjpg&auto=webp&s=731df8ebfb170581b1c7a6c31d3e662406f8bd5a', bonusType: 'multiplier', bonusValue: 2, bonusText: 'x2 tổng tiền' },
     goku: { id: 'goku', name: 'Goku', rarity: 'Secret', image: 'https://bleedingcool.com/wp-content/uploads/2020/01/ultra-instinct-goku-900x900.jpg', bonusType: 'flat', bonusValue: 500, bonusText: '+500$ mỗi khối' },
@@ -148,7 +149,7 @@ const GACHA_BANNERS = {
         pool: { Common: ['inosuke', 'vegeta'], Rare: ['sanji'], Epic: ['ichigo'], Legend: ['saitama', 'rimuru'], Mythic: ['rengoku'], Secret: ['zenitsu'] }
     },
     titanEra: {
-        id: 4, name: "Banner 4: Thời đại Titan", cost: 500000, refundRate: 0.2,
+        id: 4, name: "Banner 4: Thời đại Titan", cost: 1250000, refundRate: 0.2, // Updated cost to 1,250,000
         rates: { Common: 0.60, Rare: 0.25, Epic: 0.09, Legend: 0.04, Mythic: 0.015, Secret: 0.005 },
         pool: { 
             Common: ['jean', 'marlo'], 
@@ -621,13 +622,23 @@ function renderStatsPanel() {
     const panel = panelContainer.querySelector('.panel');
     if (!panel) return;
     panel.querySelector('#depthStat').textContent = state.depth;
-    const hours = Math.floor(state.stats.timePlayed / 3600).toString().padStart(2, '0');
-    const minutes = Math.floor((state.stats.timePlayed % 3600) / 60).toString().padStart(2, '0');
-    const seconds = Math.floor(state.stats.timePlayed % 60).toString().padStart(2, '0');
+    
+    // Convert timePlayed from seconds to HH:MM:SS
+    const totalSeconds = Math.floor(state.stats.timePlayed);
+    const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+    const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+    const seconds = Math.floor(totalSeconds % 60).toString().padStart(2, '0');
     panel.querySelector('#timePlayed').textContent = `${hours}:${minutes}:${seconds}`;
+
     panel.querySelector('#blocksMined').textContent = state.stats.blocksMined;
     panel.querySelector('#moneyEarned').textContent = `${formatMoney(state.stats.moneyEarned)} $`;
     panel.querySelector('#moneySpent').textContent = `${formatMoney(state.stats.moneySpent)} $`;
+    
+    // New stats
+    panel.querySelector('#gachaPullsStat').textContent = state.stats.gachaPulls;
+    panel.querySelector('#ownedHeroesStat').textContent = state.heroes.collection.length;
+    panel.querySelector('#ownedArtifactsStat').textContent = state.artifacts.collection.length;
+
     let totalFlatBonus = 0, totalMultiplier = 1;
     state.heroes.equipped.forEach(heroId => {
         const hero = HERO_DATA[heroId];
@@ -910,7 +921,7 @@ function nextTrack() {
 }
 
 function prevTrack() {
-    const prevIndex = state.music.currentTrack === 0 ? state.music.tracks.length - 1 : state.music.currentTrack - 1;
+    const prevIndex = state.music.currentTrack === 0 ? state.music.tracks.length - 1 : state.music.tracks.length - 1;
     loadTrack(prevIndex);
     if (state.music.isPlaying) {
         playTrack();
@@ -1150,6 +1161,7 @@ function summonHero(count = 1, bannerId) {
 
     isGachaAnimating = true;
     state.resources.money -= cost; state.stats.moneySpent += cost;
+    state.stats.gachaPulls += count; // Increment gacha pulls stat
     let results = [], totalRefund = 0;
     for(let i = 0; i < count; i++) {
         let chosenRarity;
@@ -1610,6 +1622,8 @@ function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
 
+    state.stats.timePlayed += delta; // Increment timePlayed by delta for accuracy
+
     if (state.upgrades.autoMineLevel > 0) {
         autoMineTimer -= delta;
         if (autoMineTimer <= 0) {
@@ -1839,9 +1853,10 @@ window.onload = function() {
     animate();
 
     // Main game loop for stats and saving
+    // Removed setInterval for timePlayed as it's now updated in animate()
     if (saveInterval) clearInterval(saveInterval);
     saveInterval = setInterval(() => {
-        state.stats.timePlayed++;
+        // state.stats.timePlayed++; // This line is now removed
         if(activePanel === 'template-stats') renderStatsPanel();
         saveState(); // Auto-save
     }, 30000); // Save every 30 seconds
