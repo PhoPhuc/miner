@@ -164,48 +164,61 @@
     </template>
 
     <template id="template-stats">
-        <div class="panel max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <div class="panel !max-w-4xl max-h-[80vh] overflow-y-auto custom-scrollbar">
             <h2 class="font-bold text-lg text-center border-b border-slate-600 pb-2 mb-3">Thống Kê Chi Tiết</h2>
-            <div class="space-y-4">
-                <div>
-                    <h3 class="font-semibold text-base text-amber-400 mb-1">Chung</h3>
-                    <div class="stat-item"><span>⛏️ Tầng đã đào:</span> <span id="depthStat" class="font-bold text-purple-400">0</span></div>
-                    <div class="stat-item"><span>🕒 Thời gian chơi:</span> <span id="timePlayed" class="font-bold">00:00:00</span></div>
-                    <div class="stat-item"><span>💎 Tổng khối đã đào:</span> <span id="blocksMined" class="font-bold">0</span></div>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-base text-green-400 mb-1">Kinh Tế</h3>
-                    <div class="stat-item"><span>📈 Tiền kiếm được:</span> <span id="moneyEarned" class="font-bold">0 $</span></div>
-                    <div class="stat-item"><span>📉 Tiền đã tiêu:</span> <span id="moneySpent" class="font-bold">0 $</span></div>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-base text-cyan-400 mb-1">Thưởng Từ Hero</h3>
-                    <div class="stat-item"><span>💰 Tiền cộng/khối:</span> <span id="heroFlatBonusStat" class="font-bold text-green-400">+0 $</span></div>
-                    <div class="stat-item"><span>✖️ Hệ số nhân tiền:</span> <span id="heroMultiplierStat" class="font-bold text-green-400">x1.00</span></div>
-                </div>
-                 <div>
-                    <h3 class="font-semibold text-base text-red-400 mb-1">Chiến đấu (Dungeon)</h3>
-                    <div class="stat-item"><span>⚔️ Sát thương:</span> <span id="playerDamageStat" class="font-bold">1</span></div>
-                </div>
-                <div>
-                    <h3 class="font-semibold text-base text-blue-400 mb-1">Khối Đã Đào</h3>
-                    <div id="mined-blocks-stats" class="space-y-1">
-                        <p class="text-slate-400 text-center">Chưa có dữ liệu.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Column 1 -->
+                <div class="space-y-6">
+                    <div class="stats-section">
+                        <h3 class="font-semibold text-base text-amber-400">Chung</h3>
+                        <div class="stat-item"><span>⛏️ Tầng đã đào:</span> <span id="depthStat" class="font-bold text-purple-400">0</span></div>
+                        <div class="stat-item"><span>🕒 Thời gian chơi:</span> <span id="timePlayed" class="font-bold">00:00:00</span></div>
+                        <div class="stat-item"><span>💎 Tổng khối đã đào:</span> <span id="blocksMined" class="font-bold">0</span></div>
+                        <div class="stat-item"><span>🎰 Số lần quay Gacha:</span> <span id="gachaPullsStat" class="font-bold">0</span></div>
+                    </div>
+                    <div class="stats-section">
+                        <h3 class="font-semibold text-base text-green-400">Kinh Tế</h3>
+                        <div class="stat-item"><span>📈 Tiền kiếm được:</span> <span id="moneyEarned" class="font-bold">0 $</span></div>
+                        <div class="stat-item"><span>📉 Tiền đã tiêu:</span> <span id="moneySpent" class="font-bold">0 $</span></div>
+                    </div>
+                    <div class="stats-section">
+                        <h3 class="font-semibold text-base text-cyan-400">Thưởng Từ Hero</h3>
+                        <div class="stat-item"><span>💰 Tiền cộng/khối:</span> <span id="heroFlatBonusStat" class="font-bold text-green-400">+0 $</span></div>
+                        <div class="stat-item"><span>✖️ Hệ số nhân tiền:</span> <span id="heroMultiplierStat" class="font-bold text-green-400">x1.00</span></div>
+                    </div>
+                     <div class="stats-section">
+                        <h3 class="font-semibold text-base text-red-400">Chiến đấu (Dungeon)</h3>
+                        <div class="stat-item"><span>⚔️ Sát thương:</span> <span id="playerDamageStat" class="font-bold">1</span></div>
                     </div>
                 </div>
-                 <div class="pt-3 border-t border-slate-600">
-                     <h3 class="font-semibold mb-2">Giftcode</h3>
-                     <div class="flex gap-2">
-                         <input id="giftcode-input" type="text" class="bg-slate-900/50 rounded-md px-2 py-1 flex-grow text-white" placeholder="Nhập code...">
-                         <button id="giftcode-submit" class="btn-primary !w-auto px-4">OK</button>
-                     </div>
-                     <p id="giftcode-message" class="text-sm text-center mt-2 h-4"></p>
-                </div>
-                <div class="pt-3 border-t border-slate-600">
-                    <h3 class="font-semibold mb-2">Quản lý Dữ liệu</h3>
-                    <div class="flex flex-col gap-2">
-                        <button id="save-game-btn" class="btn-primary !bg-blue-600 hover:!bg-blue-500">Lưu Game</button>
-                        <button id="reset-game-btn" class="btn-primary !bg-red-700 hover:!bg-red-600">Reset Game</button>
+                <!-- Column 2 -->
+                <div class="space-y-6">
+                    <div class="stats-section">
+                        <h3 class="font-semibold text-base text-blue-400">Bộ Sưu Tập</h3>
+                        <div class="stat-item"><span>🦸‍♂️ Nhân vật đang sở hữu:</span> <span id="ownedHeroesStat" class="font-bold">0</span></div>
+                        <div class="stat-item"><span>📿 Di vật đang sở hữu:</span> <span id="ownedArtifactsStat" class="font-bold">0</span></div>
+                    </div>
+                    <div class="stats-section h-full">
+                        <h3 class="font-semibold text-base text-blue-400">Khối Đã Đào</h3>
+                        <div id="mined-blocks-stats" class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
+                            <p class="text-slate-400 text-center">Chưa có dữ liệu.</p>
+                        </div>
+                    </div>
+                    <div class="stats-section">
+                         <h3 class="font-semibold">Giftcode</h3>
+                         <div class="flex gap-2">
+                             <input id="giftcode-input" type="text" class="bg-slate-900/50 rounded-md px-2 py-1 flex-grow text-white" placeholder="Nhập code...">
+                             <button id="giftcode-submit" class="btn-primary !w-auto px-4">OK</button>
+                         </div>
+                         <p id="giftcode-message" class="text-sm text-center mt-2 h-4"></p>
+                    </div>
+                    <div class="stats-section">
+                        <h3 class="font-semibold">Quản lý Dữ liệu</h3>
+                        <div class="flex flex-col gap-2">
+                            <button id="save-game-btn" class="btn-primary !bg-blue-600 hover:!bg-blue-500">Lưu Game</button>
+                            <button id="reset-game-btn" class="btn-primary !bg-red-700 hover:!bg-red-600">Reset Game</button>
+                        </div>
+                        <p class="text-xs text-slate-500 text-center mt-2">Lần lưu cuối: <span id="last-saved-time">Chưa lưu</span></p>
                     </div>
                 </div>
             </div>
