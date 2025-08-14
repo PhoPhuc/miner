@@ -1,23 +1,345 @@
+// Mobile optimization variables
+let isMobile = false;
+let isLandscape = false;
+let touchStartY = 0;
+let touchStartX = 0;
+
+// Detect mobile device
+function detectMobile() {
+    isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+               window.innerWidth <= 768;
+    
+    // Update mobile state on resize
+    window.addEventListener('resize', () => {
+        isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   window.innerWidth <= 768;
+        isLandscape = window.innerWidth > window.innerHeight;
+        updateMobileLayout();
+    });
+    
+    // Initial detection
+    isLandscape = window.innerWidth > window.innerHeight;
+    updateMobileLayout();
+}
+
+// Update mobile layout
+function updateMobileLayout() {
+    if (isMobile) {
+        document.body.classList.add('mobile');
+        if (isLandscape) {
+            document.body.classList.add('landscape');
+        } else {
+            document.body.classList.remove('landscape');
+        }
+    } else {
+        document.body.classList.remove('mobile', 'landscape');
+    }
+}
+
+// Touch event handling for mobile
+function initTouchHandling() {
+    if (!isMobile) return;
+    
+    // Prevent zoom on double tap
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (event) => {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
+    
+    // Handle touch gestures for panels
+    const panels = document.querySelectorAll('.panel');
+    panels.forEach(panel => {
+        let startY = 0;
+        let currentY = 0;
+        
+        panel.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+        });
+        
+        panel.addEventListener('touchmove', (e) => {
+            currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+            
+            // Prevent default scrolling if panel is being dragged
+            if (Math.abs(deltaY) > 10) {
+                e.preventDefault();
+            }
+        });
+    });
+    
+    // Optimize button touch events
+    const buttons = document.querySelectorAll('.btn-primary, .toggle-button, .tab-button');
+    buttons.forEach(button => {
+        button.addEventListener('touchstart', (e) => {
+            button.style.transform = 'scale(0.95)';
+            button.style.opacity = '0.8';
+        });
+        
+        button.addEventListener('touchend', (e) => {
+            button.style.transform = '';
+            button.style.opacity = '';
+        });
+    });
+}
+
+// Mobile performance optimizations
+function initMobilePerformance() {
+    if (!isMobile) return;
+    
+    // Reduce animation frame rate on mobile for better performance
+    let animationFrameId;
+    let lastTime = 0;
+    const targetFPS = 30; // Reduce FPS on mobile
+    
+    function animate(currentTime) {
+        if (currentTime - lastTime >= (1000 / targetFPS)) {
+            // Update game logic here if needed
+            lastTime = currentTime;
+        }
+        animationFrameId = requestAnimationFrame(animate);
+    }
+    
+    // Start animation loop
+    animationFrameId = requestAnimationFrame(animate);
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+    });
+}
+
+// Initialize mobile optimizations
+document.addEventListener('DOMContentLoaded', () => {
+    detectMobile();
+    initTouchHandling();
+    initMobilePerformance();
+});
+
+// ...existing code...
+let isGachaAnimating = false;
+function showConfirmationModal(text, onConfirm) {
+    const modal = document.getElementById('confirmation-modal');
+    modal.querySelector('#confirmation-text').textContent = text;
+    modal.classList.add('show');
+
+    const confirmBtn = modal.querySelector('#confirm-yes-btn');
+    const cancelBtn = modal.querySelector('#confirm-no-btn');
+
+    const confirmHandler = () => {
+        onConfirm();
+        hideConfirmationModal();
+        removeListeners();
+    };
+
+    const cancelHandler = () => {
+        hideConfirmationModal();
+        removeListeners();
+    };
+    
+    const removeListeners = () => {
+        confirmBtn.removeEventListener('click', confirmHandler);
+        cancelBtn.removeEventListener('click', cancelHandler);
+    };
+
+    confirmBtn.addEventListener('click', confirmHandler);
+
+    cancelBtn.addEventListener('click', cancelHandler);
+}
+// ...existing code...
+
+function showNotification(message, type = 'info') {
+    const notif = document.createElement('div');
+    notif.className = `notification ${type}`;
+    notif.textContent = message;
+    notificationContainer.appendChild(notif);
+
+    setTimeout(() => notif.remove(), 3000);
+}
+// ...existing code...
+
+function summonHero(count = 1, bannerId, options = {}) {
+    if (isGachaAnimating) return; 
+    if (!bannerId) { 
+        showNotification("Vui lòng chọn một banner!", "error"); 
+        if (options.onComplete) options.onComplete();
+        return; 
+    }
+    const banner = GACHA_BANNERS[bannerId];
+    if (!banner) return;
+    const cost = banner.cost * count;
+    
+    // Check money
+    if (state.resources.money < cost) { 
+        showNotification("Không đủ tiền!", "error");
+        if (options.onComplete) options.onComplete();
+        return; 
+    }
+
+    isGachaAnimating = true;
+    state.resources.money -= cost; 
+    state.stats.moneySpent += cost;
+    state.stats.gachaPulls += count;
+    
+    // Auto gacha logic removed
+    
+    let results = [], totalRefund = 0;
+    for(let i = 0; i < count; i++) {
+        let chosenRarity;
+        if (state.stats.pityCounters[bannerId] <= 1) {
+            chosenRarity = 'Mythic'; 
+            state.stats.pityCounters[bannerId] = 80;
+        } else {
+            const rand = Math.random(); 
+            let cumulativeRate = 0;
+            for (const rarity in banner.rates) {
+                cumulativeRate += banner.rates[rarity];
+                if (rand < cumulativeRate) { 
+                    chosenRarity = rarity; 
+                    break; 
+                }
+            }
+            state.stats.pityCounters[bannerId]--;
+        }
+        const pool = banner.pool[chosenRarity];
+        const heroId = pool[Math.floor(Math.random() * pool.length)];
+        if (state.heroes.collection.includes(heroId)) {
+            totalRefund += Math.floor(banner.cost * banner.refundRate);
+        } else {
+            state.heroes.collection.push(heroId);
+        }
+        results.push(HERO_DATA[heroId]);
+    }
+    state.resources.money += totalRefund;
+    showGachaResult(results, totalRefund, bannerId, options.onComplete);
+    updateUI({ fullRender: true });
+}
+
+// --- Auto Gacha Logic (Continuous) ---
+// This entire section has been removed.
+
+function showGachaResult(results, totalRefund, bannerId, onCompleteCallback) {
+    const modal = document.getElementById('gacha-modal');
+    const container = document.getElementById('gacha-result-container');
+    container.innerHTML = `<div class="gacha-reels-container"></div><div id="gacha-final-result"></div><p class="text-sm text-slate-500 mt-4 opacity-0" id="gacha-close-message">(Nhấp vào nút Đóng hoặc Quay tiếp)</p>`;
+    modal.classList.add('show');
+    const reelsContainer = container.querySelector('.gacha-reels-container');
+    const banner = GACHA_BANNERS[bannerId];
+    const animationHeroes = Object.values(banner.pool).flat().map(heroId => HERO_DATA[heroId]).filter(hero => hero.rarity !== 'Secret');
+    const reelHeight = 140, spinItemsCount = 30;
+    let longestDuration = 0;
+    
+    results.forEach((result, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'gacha-reel-wrapper';
+        wrapper.dataset.heroId = result.id;
+        const reel = document.createElement('div');
+        reel.className = 'gacha-reel';
+        for(let i = 0; i < spinItemsCount; i++) {
+            const randomHero = animationHeroes[Math.floor(Math.random() * animationHeroes.length)];
+            reel.innerHTML += `<img src="${randomHero.image}" alt="${randomHero.name}" onerror="this.onerror=null;this.src='https://placehold.co/140x140/1e293b/94a3b8?text=Error';">`;
+        }
+        reel.innerHTML += `<img src="${result.image}" alt="${result.name}" onerror="this.onerror=null;this.src='https://placehold.co/140x140/1e293b/94a3b8?text=Error';">`;
+        wrapper.appendChild(reel);
+        reelsContainer.appendChild(wrapper);
+        const duration = 2.5 + index * 0.4;
+        if (duration > longestDuration) longestDuration = duration;
+        requestAnimationFrame(() => {
+            reel.style.transition = `transform ${duration}s cubic-bezier(0.25, 1, 0.5, 1)`;
+            reel.style.transform = `translateY(-${spinItemsCount * reelHeight}px)`;
+        });
+    });
+
+    setTimeout(() => {
+        if (totalRefund > 0) showNotification(`Được hoàn ${formatMoney(totalRefund)}$ từ nhân vật trùng lặp!`, 'info');
+        const finalResultContainer = document.getElementById('gacha-final-result');
+        const bestHero = [...results].sort((a, b) => ({ Secret: 5, Mythic: 4, Legend: 3, Epic: 2, Rare: 1, Common: 0 })[b.rarity] - ({ Secret: 5, Mythic: 4, Legend: 3, Epic: 2, Rare: 1, Common: 0 })[a.rarity])[0];
+        reelsContainer.querySelectorAll('.gacha-reel-wrapper').forEach(reel => {
+            if (reel.dataset.heroId === bestHero.id) reel.classList.add(`highlight-${bestHero.rarity}`);
+        });
+        finalResultContainer.innerHTML = `
+            <div class="final-hero-display">
+                <img src="${bestHero.image}" alt="${bestHero.name}" class="hero-image object-cover" onerror="this.onerror=null;this.src='https://placehold.co/120x120/1e293b/94a3b8?text=Error';">
+                <div>
+                    <p class="text-sm text-slate-400">Bạn đã nhận được</p>
+                    <h2 class="text-4xl font-bold rarity-${bestHero.rarity}">${bestHero.name}</h2>
+                    <p class="font-semibold text-lg rarity-${bestHero.rarity}">(${bestHero.rarity})</p>
+                </div>
+                <div class="mt-4 flex flex-col sm:flex-row gap-2 w-full">
+                    <button id="gacha-again-1" class="btn-primary text-base flex-1">Quay x1</button>
+                    <button id="gacha-again-3" class="btn-primary text-base flex-1">Quay x3</button>
+                    <button id="gacha-again-5" class="btn-primary text-base flex-1">Quay x5</button>
+                </div>
+                 <button id="gacha-close" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg mt-2 w-full">Đóng</button>
+            </div>`;
+        finalResultContainer.classList.add('visible');
+        document.getElementById('gacha-close-message').style.opacity = '1';
+        isGachaAnimating = false;
+        
+        // Disable Gacha-again buttons if in auto mode
+        // Logic for auto-gacha has been removed
+        
+        if (onCompleteCallback) {
+            onCompleteCallback();
+        }
+    }, (longestDuration + 0.2) * 1000);
+}
+
+// Hàm này được dùng cho các nút quay bình thường (x1, x3, x5)
+function summonHeroManual(count) {
+    if (!state.activeBanner) {
+        showNotification("Vui lòng chọn một banner!", "error");
+        return;
+    }
+    const banner = GACHA_BANNERS[state.activeBanner];
+    const cost = banner.cost * count;
+    if (state.resources.money < cost) {
+        showNotification("Không đủ tiền!", "error");
+        return;
+    }
+    summonHero(count, state.activeBanner);
+}
+
 // --- DOM Elements ---
-let moneyEl, panelContainer, canvas, notificationContainer;
-let toggleButtons = {};
+let moneyEl, panelContainer, canvas, notificationContainer, shardsEl;
+let toggleButtons = {
+    upgrades: null,
+    stats: null,
+    gacha: null,
+    equipment: null,
+    dungeon: null,
+    music: null,
+    passive: null
+};
+
+// --- Global Variables ---
 let audioPlayer = null;
 
 // --- Game State ---
 let defaultState = {
-    resources: { money: 200000 },
+    resources: { 
+        money: 200000,
+        shards: 0
+    },
     stats: { 
-        timePlayed: 0, // Changed to float for more accurate time tracking
+        timePlayed: 0,
         blocksMined: 0,
         moneyEarned: 0,
         moneySpent: 0,
         minedBlockCounts: {},
-        gachaPulls: 0, // New stat: total gacha pulls
+        gachaPulls: 0,
         pityCounters: {
             hyper: 80,
             allstars: 80,
             ultimate: 80,
             titanEra: 80,
+            detective: 80,
+            newGeneration: 80,
         },
     },
     upgrades: { 
@@ -35,10 +357,12 @@ let defaultState = {
     heroes: {
         collection: [],
         equipped: [],
+        passives: {},
     },
     dungeon: {
         highestFloor: 0,
         currentRun: null,
+        cooldown: 0,
     },
     artifacts: {
         collection: [],
@@ -48,7 +372,7 @@ let defaultState = {
         currentTrack: 0,
         isPlaying: false,
         volume: 0.16,
-        loopSingleTrack: false, // New: state for looping current track
+        loopSingleTrack: false,
         tracks: [
             { name: 'Track 1', file: 'music/track-1.mp3' },
             { name: 'Track 2', file: 'music/track-2.mp3' },
@@ -58,6 +382,11 @@ let defaultState = {
             { name: 'Track 6', file: 'music/track-6.mp3' }
         ]
     },
+    settings: {
+        backgroundImage: '',
+        backgroundBlur: 0,
+        backgroundOpacity: 1
+    },
     depth: 0,
     usedCodes: [],
     activeBanner: null,
@@ -65,7 +394,6 @@ let defaultState = {
 let state = JSON.parse(JSON.stringify(defaultState)); // Deep copy default state
 
 let activePanel = null;
-let isGachaAnimating = false;
 let dungeonTimerInterval = null;
 let saveInterval = null;
 
@@ -91,8 +419,11 @@ const BLOCK_TYPES = {
     crystal: { id: 'crystal', name: 'Crystal', health: 7000, sellValue: 12000, gradient: ['#4c1d95', '#a855f7'] },
     uranious: { id: 'uranious', name: 'Uranious', health: 8000, sellValue: 14000, gradient: ['#000000', '#166534'] },
     bonreus: { id: 'bonreus', name: 'Bonreus', health: 9000, sellValue: 15000, gradient: ['#ffffff', '#1e293b'] },
-    darkium: { id: 'darkium', name: 'Darkium', health: 11000, sellValue: 17500, gradient: ['#ef4444', '#000000'] }
+    darkium: { id: 'darkium', name: 'Darkium', health: 11000, sellValue: 17500, gradient: ['#ef4444', '#000000'] },
+    kotso: { id: 'kotso', name: 'Đá Kotso', health: 15000, sellValue: 25000 } // Will set color dynamically
 };
+
+const KOTSO_COLORS = ['#EEDC82', '#FFF8DC', '#F0E68C'];
 
 const HERO_DATA = {
     naruto: { id: 'naruto', name: 'Naruto', rarity: 'Common', image: 'https://photo-resize-zmp3.zadn.vn/w600_r1x1_jpeg/cover/1/9/5/7/19571506525e47f5b79977c1fc20cec1.jpg', bonusType: 'flat', bonusValue: 2, bonusText: '+2$ mỗi khối' },
@@ -131,6 +462,38 @@ const HERO_DATA = {
     mikasa: { id: 'mikasa', name: 'Mikasa', rarity: 'Mythic', image: 'https://drive.google.com/uc?export=view&id=1h5G_x-p8S0xQY_4w2V8Z-8x9Y_8Z_9Q_', bonusType: 'multiplier', bonusValue: 3.0, bonusText: 'x3 tổng tiền' },
     eren: { id: 'eren', name: 'Eren', rarity: 'Secret', image: 'https://drive.google.com/uc?export=view&id=1B-g4gV6_w6y8F_4w_4w_4w_4w_4w_4w_', bonusType: 'flat', bonusValue: 1500, bonusText: '+1500$ mỗi khối' },
     erwin: { id: 'erwin', name: 'Erwin', rarity: 'Secret', image: 'https://drive.google.com/uc?export=view&id=1Q_x_x_x_x_x_x_x_x_x_x_x_x_x_x_x_x_', bonusType: 'flat', bonusValue: 1200, bonusText: '+1200$ mỗi khối' },
+    // New Detective Conan heroes
+    genta: { id: 'genta', name: 'Genta', rarity: 'Common', image: 'https://i.pinimg.com/736x/69/ef/94/69ef94f9de48af1fb1c4c2893ee1fd98.jpg', bonusType: 'flat', bonusValue: 2, bonusText: '+2$ mỗi khối' },
+    ayumi: { id: 'ayumi', name: 'Ayumi', rarity: 'Common', image: 'https://i.pinimg.com/736x/b4/66/1b/b4661b550d00633d7f17ea230ced6c38.jpg', bonusType: 'flat', bonusValue: 2, bonusText: '+2$ mỗi khối' },
+    sonoko: { id: 'sonoko', name: 'Sonoko', rarity: 'Rare', image: 'https://i.pinimg.com/736x/54/17/86/5417868511cdfa546aa2968f588ffdc4.jpg', bonusType: 'flat', bonusValue: 5, bonusText: '+5$ mỗi khối' },
+    yukiko_kudo: { id: 'yukiko_kudo', name: 'Yukiko Kudo', rarity: 'Rare', image: 'https://i.pinimg.com/222x/1e/51/5d/1e515d46581ade05599aebadc4e87fe5.jpg', bonusType: 'flat', bonusValue: 5, bonusText: '+5$ mỗi khối' },
+    heiji: { id: 'heiji', name: 'Heiji', rarity: 'Epic', image: 'https://i.pinimg.com/736x/fc/a8/c6/fca8c61455fd19c46f480eb4d3f2c941.jpg', bonusType: 'flat', bonusValue: 10, bonusText: '+10$ mỗi khối' },
+    shuichi_akai: { id: 'shuichi_akai', name: 'Shuichi Akai', rarity: 'Legend', image: 'https://i.pinimg.com/280x280_RS/49/92/8e/49928ead0942ad84d4a31dc7efaaaee7.jpg', bonusType: 'flat', bonusValue: 20, bonusText: '+20$ mỗi khối' },
+    kid: { id: 'kid', name: 'Kid', rarity: 'Legend', image: 'https://i.pinimg.com/736x/21/57/5a/21575a2d6728c70f80d720b080b06b9b.jpg', bonusType: 'flat', bonusValue: 20, bonusText: '+20$ mỗi khối' },
+    conan: { id: 'conan', name: 'Conan', rarity: 'Mythic', image: 'https://i.pinimg.com/736x/29/77/81/29778112117562f7902d29486c8f9467.jpg', bonusType: 'multiplier', bonusValue: 1.5, bonusText: 'x1.5 tổng tiền' },
+    ai_haibara: { id: 'ai_haibara', name: 'Ai Haibara', rarity: 'Secret', image: 'https://i.pinimg.com/736x/80/7e/6b/807e6ba3f5a049f5c22502c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    shinichi_kudo: { id: 'shinichi_kudo', name: 'Shinichi Kudo', rarity: 'Secret', image: 'https://i.pinimg.com/736x/2b/38/20/2b38202d5d283626786c5f778c4a1613.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    ran_mouri: { id: 'ran_mouri', name: 'Ran Mouri', rarity: 'Secret', image: 'https://i.pinimg.com/736x/9f/95/96/9f9596395b77c5e53381a1d63e9c5f61.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    jodie_starling: { id: 'jodie_starling', name: 'Jodie Starling', rarity: 'Secret', image: 'https://i.pinimg.com/736x/e2/2e/81/e22e811c7590807e6c31d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    gin: { id: 'gin', name: 'Gin', rarity: 'Secret', image: 'https://i.pinimg.com/736x/7e/2a/a4/7e2aa4f5a049f5c22502c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    vodka: { id: 'vodka', name: 'Vodka', rarity: 'Secret', image: 'https://i.pinimg.com/736x/8f/3e/2a/8f3e2a4f5a049f5c22502c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    vermout: { id: 'vermout', name: 'Vermouth', rarity: 'Secret', image: 'https://i.pinimg.com/736x/9d/95/96/9d9596395b77c5e53381a1d63e9c5f61.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    bourbon: { id: 'bourbon', name: 'Bourbon', rarity: 'Secret', image: 'https://i.pinimg.com/736x/a0/a5/10/a0a510f5a049f5c22502c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    kir: { id: 'kir', name: 'Kir', rarity: 'Secret', image: 'https://i.pinimg.com/736x/b0/b5/10/b0b510f5a049f5c22502c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    chianti: { id: 'chianti', name: 'Chianti', rarity: 'Secret', image: 'https://i.pinimg.com/736x/c0/c5/10/c0c510f5a049f5c22502c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    korn: { id: 'korn', name: 'Korn', rarity: 'Secret', image: 'https://i.pinimg.com/736x/d0/d5/10/d0d510f5a049f5c22502c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    rum: { id: 'rum', name: 'Rum', rarity: 'Secret', image: 'https://i.pinimg.com/736x/e0/e5/10/e0e510f5a049f5c22502c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    // New heroes from CSV
+    jiro: { id: 'jiro', name: 'Jiro', rarity: 'Common', image: 'https://i.pinimg.com/736x/14/e1/a1/14e1a129e2181c92b916f5219fa39563.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    tokoyami: { id: 'tokoyami', name: 'Tokoyami', rarity: 'Common', image: 'https://i.pinimg.com/736x/4c/23/e3/4c23e328b06cc2d4bbf0225e3f0d18cb.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    tenya: { id: 'tenya', name: 'Tenya', rarity: 'Common', image: 'https://i.pinimg.com/736x/a6/7b/f9/a67bf970a9bcb70c5ed8c5ab58d9d2cd.jpg', bonusType: 'flat', bonusValue: 50, bonusText: '+50$ mỗi khối' },
+    momo: { id: 'momo', name: 'Momo', rarity: 'Rare', image: 'https://i.pinimg.com/736x/0c/7c/6f/0c7c6f5accccda4f4d696a79d5c1cc50.jpg', bonusType: 'flat', bonusValue: 100, bonusText: '+100$ mỗi khối' },
+    shoto: { id: 'shoto', name: 'Shoto', rarity: 'Epic', image: 'https://i.pinimg.com/736x/e8/ed/73/e8ed73b596d060dbdd3f987f901482b7.jpg', bonusType: 'flat', bonusValue: 200, bonusText: '+200$ mỗi khối' },
+    all_might: { id: 'all_might', name: 'All Might', rarity: 'Legend', image: 'https://i.pinimg.com/1200x/df/a3/aa/dfa3aa36d1338b591a194de72855d938.jpg', bonusType: 'flat', bonusValue: 500, bonusText: '+500$ mỗi khối' },
+    aizawa: { id: 'aizawa', name: 'Aizawa', rarity: 'Legend', image: 'https://i.pinimg.com/736x/7d/5e/5b/7d5e5b0e8c751c3d0b2f5d9.jpg', bonusType: 'flat', bonusValue: 500, bonusText: '+500$ mỗi khối' },
+    // New heroes for Banner 6
+    deku: { id: 'deku', name: 'Deku', rarity: 'Mythic', image: 'https://i.pinimg.com/736x/4e/91/2d/4e912dde5dc00e240ab0560d381d460b.jpg', bonusType: 'multiplier', bonusValue: 3.5, bonusText: 'x3.5 tổng tiền' },
+    super_bakugo: { id: 'super_bakugo', name: 'Super Bakugo', rarity: 'Secret', image: 'https://i.pinimg.com/474x/ff/57/f7/ff57f7daee451b65cb5ac5e2d6d19947.jpg', bonusType: 'flat', bonusValue: 2000, bonusText: '+2000$ mỗi khối' },
 };
 
 const GACHA_BANNERS = {
@@ -150,7 +513,7 @@ const GACHA_BANNERS = {
         pool: { Common: ['inosuke', 'vegeta'], Rare: ['sanji'], Epic: ['ichigo'], Legend: ['saitama', 'rimuru'], Mythic: ['rengoku'], Secret: ['zenitsu'] }
     },
     titanEra: {
-        id: 4, name: "Banner 4: Thời đại Titan", cost: 1250000, refundRate: 0.2, // Updated cost to 1,250,000
+        id: 4, name: "Banner 4: Thời đại Titan", cost: 1500000, refundRate: 0.2, // Updated cost to 1,500,000
         rates: { Common: 0.90, Rare: 0.095, Epic: 0.004, Legend: 0.0009, Mythic: 0.00009, Secret: 0.00001 },
         pool: { 
             Common: ['jean', 'marlo'], 
@@ -159,6 +522,30 @@ const GACHA_BANNERS = {
             Legend: ['armin', 'annie'], 
             Mythic: ['mikasa'], 
             Secret: ['eren', 'erwin'] 
+        }
+    },
+    detective: { // New banner: Detective Conan
+        id: 5, name: "Banner 5: Thám tử lừng danh", cost: 10000000, refundRate: 0.2, // Cost 10,000,000
+        rates: { Common: 0.90, Rare: 0.095, Epic: 0.004, Legend: 0.0009, Mythic: 0.00009, Secret: 0.00001 },
+        pool: {
+            Common: ['genta', 'ayumi'],
+            Rare: ['sonoko', 'yukiko_kudo'],
+            Epic: ['heiji'],
+            Legend: ['shuichi_akai', 'kid'],
+            Mythic: ['conan'],
+            Secret: ['ran_mouri']
+        }
+    },
+    newGeneration: { // Banner 6: New Generation of Heroes
+        id: 6, name: "Banner 6: Thế hệ anh hùng mới", cost: 250000000, refundRate: 0.2,
+        rates: { Common: 0.90, Rare: 0.095, Epic: 0.004, Legend: 0.0009, Mythic: 0.00009, Secret: 0.00001 },
+        pool: {
+            Common: ['jiro', 'tokoyami', 'tenya'],
+            Rare: ['momo'],
+            Epic: ['shoto'],
+            Legend: ['all_might', 'aizawa'],
+            Mythic: ['deku'], // Added Deku to Mythic pool
+            Secret: ['super_bakugo'] // Added Super Bakugo to Secret pool
         }
     }
 };
@@ -178,6 +565,46 @@ const DUNGEON_MINIONS = [
     'https://cdn-icons-png.flaticon.com/512/993/993539.png',   // Orc
 ];
 
+const PASSIVE_DATA = {
+    rates: { '1': 60, '2': 39, '3': 0.9, 'rainbow': 0.1 },
+    types: {
+        '1': [
+            { id: 'flatDamage', name: 'Thêm Sát Thương', value: 50, desc: 'Tăng 50 sát thương' },
+            { id: 'gachaSpeed', name: 'Tốc Độ Gacha', value: 5, desc: 'Tăng 5% tốc độ quay gacha' },
+            { id: 'flatMoney', name: 'Tiền Mỗi Khối', value: 50, desc: 'Thêm 50$ mỗi khối' },
+            { id: 'upgradeCost', name: 'Giảm Giá Nâng Cấp', value: 5, desc: 'Giảm 5% giá nâng cấp' }
+        ],
+        '2': [
+            { id: 'heroDamage', name: 'Sát Thương Hero', value: 20, desc: 'Tăng 20% sát thương của hero' },
+            { id: 'gachaSpeed', name: 'Tốc Độ Gacha', value: 10, desc: 'Tăng 10% tốc độ quay gacha' },
+            { id: 'flatMoney', name: 'Tiền Mỗi Khối', value: 100, desc: 'Thêm 100$ mỗi khối' },
+            { id: 'moneyMultiplier', name: 'Hệ Số Tiền', value: 0.5, desc: 'Thêm x0.5 hệ số nhân tiền' },
+            { id: 'upgradeCost', name: 'Giảm Giá Nâng Cấp', value: 10, desc: 'Giảm 10% giá nâng cấp' }
+        ],
+        '3': [
+            { id: 'heroDamage', name: 'Sát Thương Hero', value: 30, desc: 'Tăng 30% sát thương của hero' },
+            { id: 'gachaSpeed', name: 'Tốc Độ Gacha', value: 15, desc: 'Tăng 15% tốc độ quay gacha' },
+            { id: 'upgradeCost', name: 'Giảm Giá Nâng Cấp', value: 15, desc: 'Giảm 15% giá nâng cấp' },
+            { id: 'moneyMultiplier', name: 'Hệ Số Tiền', value: 1, desc: 'Thêm x1.0 hệ số nhân tiền' }
+        ],
+        'rainbow': [
+            { 
+                id: 'rainbow',
+                name: 'Rainbow Passive',
+                effects: {
+                    heroDamage: 50,
+                    totalDamage: 10,
+                    gachaSpeed: 20,
+                    sellBonus: 1000,
+                    moneyMultiplier: 1.5,
+                    upgradeCost: 20
+                },
+                desc: 'Tăng 50% sát thương hero, 10% tổng damage, 20% tốc độ gacha, +1000$ mỗi lần bán, x1.5 tiền, -20% giá nâng cấp'
+            }
+        ]
+    }
+};
+
 const DUNGEON_BOSSES = [
     { name: 'Jogo', image: 'https://static.wikia.nocookie.net/discordscaling/images/c/c7/Jogo.webp/revision/latest?cb=20240905031146' },
     { name: 'Mahito', image: 'https://www.anime-colors.com/wp-content/uploads/mahito.png' },
@@ -190,10 +617,10 @@ const DUNGEON_BOSSES = [
     { name: 'Douma', image: 'https://wibu.com.vn/wp-content/uploads/2024/04/Douma.png' },
     { name: 'Hilichurl', image: 'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/hilichurl_icon.png' },
     { name: 'Slime', image: 'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/anemo_slime_icon.png' },
-    { name: 'Ruin Guard', image: 'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/ruin_guard_icon.png' },
-    { name: 'Fatui', image: 'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/fatui_pyro_agent_icon.png' },
-    { name: 'Rifthound', image: 'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/rockfond_rifthound_icon.png' },
-    { name: 'Maguu Kenki', image: 'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/maguu_kenki_icon.png' }
+    'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/ruin_guard_icon.png',   // Ruin Guard
+    'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/fatui_pyro_agent_icon.png',    // Fatui
+    'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/rockfond_rifthound_icon.png',  // Rifthound
+    'https://genshinimpact.wiki.fextralife.com/file/Genshin-Impact/maguu_kenki_icon.png'          // Maguu Kenki
 ];
 
 
@@ -244,6 +671,13 @@ function initThreeJS() {
 // --- Game Logic ---
 function getBlockType(isTopLayer, currentDepth) {
     if (isTopLayer) return 'grass';
+
+    // Check for Kotso realm (after floor 250)
+    if (currentDepth > 250) {
+        // Return Kotso stone instead of regular stone
+        if (Math.random() > 0.01) return 'kotso';
+    }
+
     if (currentDepth >= 100) {
         const DEEP_ORE_SPAWN_RANGES = { darkium: { min: 125, max: 150 }, bonreus: { min: 125, max: 150 }, uranious: { min: 100, max: 125 }, crystal: { min: 100, max: 125 } };
         const DEEP_ORE_CHANCE = 0.01;
@@ -252,6 +686,7 @@ function getBlockType(isTopLayer, currentDepth) {
             if (currentDepth >= config.min && currentDepth <= config.max && Math.random() < DEEP_ORE_CHANCE) return ore;
         }
     }
+
     const ORE_SPAWN_RANGES = { diamond:  { min: 80, max: 100 }, ruby: { min: 80, max: 100 }, rossara: { min: 50, max: 75 }, emerald: { min: 50, max: 75 }, lapis: { min: 20, max: 40 }, copper: { min: 20, max: 40 }, gold: { min: 40, max: 100 }, coal: { min: 30, max: 80 }, obsidian: { min: 40, max: 120 } };
     const IN_RANGE_CHANCE = 0.01, OUT_OF_RANGE_CHANCE = 0.00006;
     const oreCheckOrder = ['diamond', 'ruby', 'rossara', 'emerald', 'obsidian', 'gold', 'lapis', 'copper', 'coal'];
@@ -260,6 +695,7 @@ function getBlockType(isTopLayer, currentDepth) {
         let chance = (config && currentDepth >= config.min && currentDepth <= config.max) ? IN_RANGE_CHANCE : OUT_OF_RANGE_CHANCE;
         if (Math.random() < chance) return ore;
     }
+
     if (currentDepth > 100) return 'stone';
     if (currentDepth > 5 || (currentDepth > 2 && Math.random() < 0.6)) return 'stone';
     return 'dirt';
@@ -289,7 +725,13 @@ function createBlockMesh(x, y, z, blockData, currentDepth) {
     const blockTypeInfo = BLOCK_TYPES[blockData.type];
     let material;
     const isDeep = currentDepth >= 100;
-    if (isDeep && blockTypeInfo.deepGradient) material = createGradientMaterial(...blockTypeInfo.deepGradient);
+
+    // Special handling for Kotso stones
+    if (blockData.type === 'kotso') {
+        const randomKotsoColor = KOTSO_COLORS[Math.floor(Math.random() * KOTSO_COLORS.length)];
+        material = new THREE.MeshStandardMaterial({ color: new THREE.Color(randomKotsoColor) });
+    }
+    else if (isDeep && blockTypeInfo.deepGradient) material = createGradientMaterial(...blockTypeInfo.deepGradient);
     else if (blockTypeInfo.gradient) material = createGradientMaterial(...blockTypeInfo.gradient);
     else {
         const baseColor = new THREE.Color(blockTypeInfo.color);
@@ -387,7 +829,7 @@ function checkRowsCleared() {
         for (let z = 0; z < MINE_ROWS; z++) {
             for (let x = 0; x < MINE_COLS; x++) {
                 const blockData = createBlockData(false, newY);
-                const mesh = createBlockMesh(x, MINE_HEIGHT - 1, z, blockData, newY);
+                const mesh = createBlockMesh(x, y, z, blockData, newY);
                 newLayerData.push(blockData); newLayerMeshes.push(mesh); scene.add(mesh);
             }
         }
@@ -434,12 +876,14 @@ function showNotification(message, type = 'info') {
     notif.className = `notification ${type}`;
     notif.textContent = message;
     notificationContainer.appendChild(notif);
+
     setTimeout(() => notif.remove(), 3000);
 }
 
 function updateUI(options = {}) {
     const fullRender = options.fullRender === undefined ? true : options.fullRender;
     moneyEl.textContent = `${formatMoney(state.resources.money)} $`;
+    document.getElementById('shards').textContent = state.resources.shards || 0;
     const currentPanel = document.querySelector('#panel-container .panel');
     if (!currentPanel) return;
 
@@ -450,6 +894,7 @@ function updateUI(options = {}) {
             case 'template-dungeon': renderDungeonPanel(); break;
             case 'template-stats': renderStatsPanel(); break;
             case 'template-music': renderMusicPanel(); break;
+            case 'template-settings': renderSettingsPanel(); break;
         }
     }
     
@@ -577,11 +1022,17 @@ function renderGachaBannerDetails(bannerId) {
             <div class="info-icon" title="Thông tin nhân vật">i<div class="banner-tooltip">${tooltipContent}</div></div>
         </div>
         <p class="text-sm text-slate-400 mb-2">Pity Mythical sau: <span class="font-bold text-amber-400">${state.stats.pityCounters[bannerId]}</span> lượt.</p>
-        <div class="flex gap-2">
+        <div class="flex gap-2 mb-4">
             <button id="summon-1" class="btn-primary text-lg">x1 (${formatMoney(banner.cost)}$)</button>
             <button id="summon-3" class="btn-primary text-lg">x3 (${formatMoney(banner.cost * 3)}$)</button>
             <button id="summon-5" class="btn-primary text-lg">x5 (${formatMoney(banner.cost * 5)}$)</button>
+        </div>
+        <div class="border-t border-slate-600 pt-4">
+            <div class="flex flex-col gap-2">
+                <!-- Auto gacha button removed from here -->
+            </div>
         </div>`;
+    // Removed auto gacha button update logic
 }
 
 function renderArtifactsPanel() {
@@ -617,6 +1068,16 @@ function renderDungeonPanel() {
     const panel = panelContainer.querySelector('.panel');
     if (!panel) return;
     panel.querySelector('#dungeon-highest-floor').textContent = state.dungeon.highestFloor;
+    
+    // Update start button based on cooldown
+    const startBtn = panel.querySelector('#start-dungeon-btn');
+    if (state.dungeon.cooldown > 0) {
+        startBtn.disabled = true;
+        startBtn.innerHTML = `Chờ ${Math.ceil(state.dungeon.cooldown)}s`;
+    } else {
+        startBtn.disabled = false;
+        startBtn.innerHTML = 'Bắt đầu';
+    }
 }
 
 function renderStatsPanel() {
@@ -736,6 +1197,95 @@ function renderMusicPanel() {
     }
 }
 
+function renderSettingsPanel() {
+    const panel = panelContainer.querySelector('.panel');
+    if (!panel) return;
+    
+    // Update music controls
+    const currentTrackName = panel.querySelector('#settings-current-track-name');
+    if (currentTrackName) {
+        currentTrackName.textContent = state.music.tracks[state.music.currentTrack].name;
+    }
+    
+    const playIcon = panel.querySelector('#settings-play-icon');
+    const pauseIcon = panel.querySelector('#settings-pause-icon');
+    if (playIcon && pauseIcon) {
+        if (state.music.isPlaying) {
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+        } else {
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+        }
+    }
+    
+    const volumeDisplay = panel.querySelector('#settings-volume-display');
+    if (volumeDisplay) {
+        volumeDisplay.textContent = `${Math.round(state.music.volume * 100)}%`;
+    }
+    
+    const volumeSlider = panel.querySelector('#settings-volume-slider');
+    if (volumeSlider) {
+        volumeSlider.value = state.music.volume * 100;
+    }
+
+    // Update loop single track button state
+    const loopOnIcon = panel.querySelector('#settings-loop-on-icon');
+    const loopOffIcon = panel.querySelector('#settings-loop-off-icon');
+    const loopButton = panel.querySelector('#settings-music-loop-single');
+
+    if (loopOnIcon && loopOffIcon && loopButton) {
+        if (state.music.loopSingleTrack) {
+            loopOnIcon.style.display = 'block';
+            loopOffIcon.style.display = 'none';
+            loopButton.classList.add('active');
+        } else {
+            loopOnIcon.style.display = 'none';
+            loopOffIcon.style.display = 'block';
+            loopButton.classList.remove('active');
+        }
+    }
+    
+    const trackList = panel.querySelector('#settings-track-list');
+    if (trackList) {
+        trackList.innerHTML = '';
+        state.music.tracks.forEach((track, index) => {
+            const trackItem = document.createElement('div');
+            trackItem.className = `track-item ${index === state.music.currentTrack ? 'active' : ''}`;
+            trackItem.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-sm">${track.name}</span>
+                    ${index === state.music.currentTrack ? '<span class="text-amber-400 text-xs">▶</span>' : ''}
+                </div>
+            `;
+            trackItem.addEventListener('click', () => {
+                playTrack(index);
+            });
+            trackList.appendChild(trackItem);
+        });
+    }
+
+    // Update background settings
+    const backgroundUrl = panel.querySelector('#background-url');
+    if (backgroundUrl) {
+        backgroundUrl.value = state.settings.backgroundImage;
+    }
+    
+    const blurSlider = panel.querySelector('#blur-slider');
+    const blurDisplay = panel.querySelector('#blur-display');
+    if (blurSlider && blurDisplay) {
+        blurSlider.value = state.settings.backgroundBlur;
+        blurDisplay.textContent = `${state.settings.backgroundBlur}px`;
+    }
+    
+    const opacitySlider = panel.querySelector('#opacity-slider');
+    const opacityDisplay = panel.querySelector('#opacity-display');
+    if (opacitySlider && opacityDisplay) {
+        opacitySlider.value = Math.round(state.settings.backgroundOpacity * 100);
+        opacityDisplay.textContent = `${Math.round(state.settings.backgroundOpacity * 100)}%`;
+    }
+}
+
 function renderEquipmentPanel() {
     const panel = panelContainer.querySelector('.panel');
     if (!panel) return;
@@ -814,13 +1364,13 @@ function updateEquipmentPopup() {
             const artifact = ARTIFACT_DATA[artifactId];
             if (artifact) {
                 const artifactItem = document.createElement('div');
-                artifactItem.className = 'equipment-item';
-                artifactItem.title = `${artifact.name} - ${artifact.bonusText}`;
-                artifactItem.innerHTML = `
+                artifactId.className = 'equipment-item';
+                artifactId.title = `${artifact.name} - ${artifact.bonusText}`;
+                artifactId.innerHTML = `
                     <img src="${artifact.image}" alt="${artifact.name}" onerror="this.onerror=null;this.src='https://placehold.co/16x16/1e293b/94a3b8?text=?'">
                     <span>${artifact.name}</span>
                 `;
-                equippedArtifactsContainer.appendChild(artifactItem);
+                equippedArtifactsContainer.appendChild(artifactId);
             }
         });
     }
@@ -859,6 +1409,177 @@ function onCanvasClick(event) {
     }
 }
 
+function renderPassivePanel() {
+    const heroList = document.getElementById('passive-hero-list');
+    if (!heroList) return;
+
+    heroList.innerHTML = '';
+    state.heroes.collection.forEach(heroId => {
+        const hero = HERO_DATA[heroId];
+        const passive = state.heroes.passives[heroId];
+        const heroEl = document.createElement('div');
+        heroEl.className = 'passive-item flex items-center gap-2 p-2 bg-slate-800/50 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-all';
+        heroEl.dataset.heroId = heroId;
+        if (passive) {
+            heroEl.dataset.hasPassive = 'true';
+        }
+        
+        let passiveIcon = '';
+        let passiveText = '';
+        
+        if (passive) {
+            const tierClass = `passive-tier-${passive.tier}`;
+            const tierSymbol = passive.tier === 'rainbow' ? '🌈' : '⭐';
+            passiveIcon = `<div class="passive-tier-icon ${tierClass}">${tierSymbol}</div>`;
+            passiveText = `<span class="text-sm ${passive.tier === 'rainbow' ? 'text-amber-400' : `text-slate-400`}">
+                ${passive.tier === 'rainbow' ? 'Rainbow' : `${passive.tier} sao`}: ${passive.passive.name}
+            </span>`;
+        } else {
+            passiveIcon = '<div class="passive-tier-icon passive-tier-1" style="opacity: 0.3;">?</div>';
+            passiveText = '<span class="text-sm text-slate-500">Chưa có passive</span>';
+        }
+
+        heroEl.innerHTML = `
+            <img src="${hero.image}" alt="${hero.name}" class="w-10 h-10 object-cover rounded relative">
+            ${passiveIcon}
+            <div class="flex-1">
+                <div class="font-semibold">${hero.name}</div>
+                ${passiveText}
+            </div>
+            ${passive ? '<div class="passive-status-indicator"></div>' : ''}
+        `;
+        heroEl.addEventListener('click', () => showPassiveDetails(heroId));
+        heroList.appendChild(heroEl);
+    });
+}
+
+function showPassiveDetails(heroId) {
+    const detailsEl = document.getElementById('passive-details');
+    const rollSection = document.getElementById('passive-roll-section');
+    if (!detailsEl || !rollSection) return;
+
+    const hero = HERO_DATA[heroId];
+    const passive = state.heroes.passives[heroId];
+
+    let passiveHtml = '';
+    if (passive) {
+        const tierText = passive.tier === 'rainbow' ? 'Rainbow' : `${passive.tier} sao`;
+        const tierClass = `passive-tier-${passive.tier}`;
+        const tierSymbol = passive.tier === 'rainbow' ? '🌈' : '⭐';
+        
+        passiveHtml = `
+            <div class="passive-details-container text-center mb-4">
+                <div class="flex items-center justify-center gap-3 mb-3">
+                    <div class="passive-tier-icon ${tierClass} text-lg">${tierSymbol}</div>
+                    <h3 class="font-bold text-lg">${hero.name}</h3>
+                </div>
+                <p class="text-${passive.tier === 'rainbow' ? 'amber' : 'slate'}-400 font-semibold mb-2">${tierText}</p>
+                <p class="mt-2 text-slate-300">${passive.passive.desc}</p>
+            </div>
+        `;
+    } else {
+        passiveHtml = `
+            <div class="passive-details-container text-center mb-4">
+                <div class="flex items-center justify-center gap-3 mb-3">
+                    <div class="passive-tier-icon passive-tier-1" style="opacity: 0.3;">?</div>
+                    <h3 class="font-bold text-lg">${hero.name}</h3>
+                </div>
+                <p class="text-slate-400">Chưa có passive</p>
+            </div>
+        `;
+    }
+
+    detailsEl.innerHTML = passiveHtml;
+    detailsEl.dataset.heroId = heroId;
+    rollSection.style.display = 'block';
+    
+    // Add entrance animation for passive details
+    const detailsContainer = detailsEl.querySelector('.passive-details-container');
+    if (detailsContainer) {
+        detailsContainer.style.opacity = '0';
+        detailsContainer.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            detailsContainer.style.transition = 'all 0.3s ease';
+            detailsContainer.style.opacity = '1';
+            detailsContainer.style.transform = 'scale(1)';
+        }, 50);
+    }
+}
+
+function rollPassive(heroId) {
+    if (state.resources.shards < 10) {
+        showNotification('Không đủ Shard! (Cần 10 Shard)', 'error');
+        return;
+    }
+
+    state.resources.shards -= 10;
+
+    // Add rotation animation to the roll button
+    const rollButton = document.getElementById('roll-passive');
+    if (rollButton) {
+        rollButton.classList.add('rotating');
+        setTimeout(() => rollButton.classList.remove('rotating'), 800);
+        
+        // Add success animation after rotation
+        setTimeout(() => {
+            rollButton.classList.add('passive-roll-success');
+            setTimeout(() => rollButton.classList.remove('passive-roll-success'), 600);
+        }, 800);
+    }
+
+    const rand = Math.random() * 100;
+    let tier;
+    let cumulative = 0;
+
+    for (const [currentTier, rate] of Object.entries(PASSIVE_DATA.rates)) {
+        cumulative += rate;
+        if (rand <= cumulative) {
+            tier = currentTier;
+            break;
+        }
+    }
+
+    let passivePool = PASSIVE_DATA.types[tier];
+    let newPassive;
+    
+    if (tier === 'rainbow') {
+        newPassive = passivePool[0]; // Only one rainbow passive
+    } else {
+        newPassive = passivePool[Math.floor(Math.random() * passivePool.length)];
+    }
+
+    state.heroes.passives[heroId] = {
+        tier: tier,
+        passive: newPassive
+    };
+
+    // Add rotation animation to the passive item in the list
+    setTimeout(() => {
+        const passiveItems = document.querySelectorAll('.passive-item');
+        passiveItems.forEach(item => {
+            if (item.dataset.heroId === heroId) {
+                item.classList.add('rotating');
+                setTimeout(() => item.classList.remove('rotating'), 800);
+            }
+        });
+    }, 100);
+
+    // Show enhanced notification with tier-specific styling
+    const tierText = tier === 'rainbow' ? '🌈 Rainbow' : `${tier}⭐ ${tier} sao`;
+    const tierColor = tier === 'rainbow' ? 'amber' : 
+                     tier === '3' ? 'yellow' : 
+                     tier === '2' ? 'blue' : 'gray';
+    
+    showNotification(`🎉 Nhận được passive ${tierText}!`, 'success');
+    
+    // Add visual feedback to the UI
+    setTimeout(() => {
+        renderPassivePanel();
+        showPassiveDetails(heroId);
+        updateUI({ fullRender: true });
+    }, 300);
+}
+
 function setupPanelToggle(buttonId, templateId) {
     const button = document.getElementById(buttonId);
     button.addEventListener('click', () => {
@@ -873,6 +1594,9 @@ function setupPanelToggle(buttonId, templateId) {
             activePanel = templateId;
             Object.values(toggleButtons).forEach(b => b.classList.remove('active'));
             button.classList.add('active');
+            if (templateId === 'template-passive') {
+                renderPassivePanel();
+            }
             updateUI({ fullRender: true });
         }
     });
@@ -952,7 +1676,7 @@ function prevTrack() {
     if (state.music.loopSingleTrack) {
         return;
     }
-    const prevIndex = state.music.currentTrack === 0 ? state.music.tracks.length - 1 : state.music.currentTrack - 1;
+    const prevIndex = state.music.currentTrack === 0 ? state.music.tracks.length - 1 : state.music.tracks.length - 1;
     loadTrack(prevIndex);
     if (state.music.isPlaying) {
         playTrack();
@@ -979,15 +1703,31 @@ function toggleSingleTrackLoop() {
     }
 }
 
+
 function setupEventListeners() {
     panelContainer.addEventListener('click', (e) => {
         const button = e.target.closest('button');
         const newHeroItem = e.target.closest('.equipment-item-new');
         const artifactCard = e.target.closest('.artifact-card');
 
+        // Handle passive roll button
+        if (button && button.id === 'roll-passive') {
+            const detailsEl = document.getElementById('passive-details');
+            if (detailsEl && detailsEl.dataset.heroId) {
+                rollPassive(detailsEl.dataset.heroId);
+            }
+            return;
+        }
+
+        // The auto gacha button logic was removed from here.
+        
         if (button && !button.closest('.equipment-details')) { // Prevent clicks on equip button from re-triggering details
             const { id, dataset } = button;
-            if (dataset.banner) { state.activeBanner = dataset.banner; renderGachaBannerDetails(state.activeBanner); return; }
+            if (dataset.banner) { 
+                state.activeBanner = dataset.banner; 
+                renderGachaBannerDetails(state.activeBanner); 
+                return; 
+            }
             if (dataset.tab) {
                 panelContainer.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
                 panelContainer.querySelector(`#${dataset.tab}`).classList.remove('hidden');
@@ -1044,9 +1784,9 @@ function setupEventListeners() {
                     break;
                 }
                 case 'giftcode-submit': redeemGiftcode(); break;
-                case 'summon-1': summonHero(1, state.activeBanner); break;
-                case 'summon-3': summonHero(3, state.activeBanner); break;
-                case 'summon-5': summonHero(5, state.activeBanner); break;
+                case 'summon-1': summonHeroManual(1); break;
+                case 'summon-3': summonHeroManual(3); break;
+                case 'summon-5': summonHeroManual(5); break;
                 case 'start-dungeon-btn': startDungeonRun(); break;
                 case 'music-play-pause': 
                     if (state.music.isPlaying) pauseTrack(); else playTrack();
@@ -1058,6 +1798,15 @@ function setupEventListeners() {
                 case 'reset-game-btn': 
                     showConfirmationModal("Bạn có chắc chắn muốn reset game? Mọi tiến trình sẽ bị mất vĩnh viễn.", resetState);
                     break;
+                // Settings panel event listeners
+                case 'settings-music-play-pause': 
+                    if (state.music.isPlaying) pauseTrack(); else playTrack();
+                    break;
+                case 'settings-music-next': nextTrack(); break;
+                case 'settings-music-prev': prevTrack(); break;
+                case 'settings-music-loop-single': toggleSingleTrackLoop(); break;
+                case 'apply-background': applyBackgroundImage(); break;
+                case 'reset-background': resetBackgroundImage(); break;
             }
         } else if (newHeroItem) {
             handleEquipmentItemClick(newHeroItem);
@@ -1070,6 +1819,17 @@ function setupEventListeners() {
         if (e.target.id === 'volume-slider') {
             const volume = parseFloat(e.target.value) / 100;
             setVolume(volume);
+        } else if (e.target.id === 'settings-volume-slider') {
+            const volume = parseFloat(e.target.value) / 100;
+            setVolume(volume);
+        } else if (e.target.id === 'blur-slider') {
+            const blur = parseInt(e.target.value);
+            state.settings.backgroundBlur = blur;
+            updateBackgroundImage();
+        } else if (e.target.id === 'opacity-slider') {
+            const opacity = parseFloat(e.target.value) / 100;
+            state.settings.backgroundOpacity = opacity;
+            updateBackgroundImage();
         }
     });
 }
@@ -1096,7 +1856,7 @@ function redeemGiftcode() {
     const code = input.value.toLowerCase().trim();
     const rewardAmount = 2500000; // 2.5 triệu
     
-    if (code === 'phophuc' || code === 'kidcat') { // Check for both codes
+    if (code === 'phophuc' || code === 'kidcat') { // Money codes
         if (state.usedCodes.includes(code)) {
             messageEl.textContent = "Code đã được sử dụng!";
         } else {
@@ -1104,6 +1864,16 @@ function redeemGiftcode() {
             state.stats.moneyEarned += rewardAmount;
             state.usedCodes.push(code);
             messageEl.textContent = `Bạn nhận được ${formatMoney(rewardAmount)}$!`;
+            updateUI({ fullRender: true });
+        }
+    } else if (code === 'passive') { // Shard code
+        if (state.usedCodes.includes(code)) {
+            messageEl.textContent = "Code đã được sử dụng!";
+        } else {
+            const shardReward = 50;
+            state.resources.shards = (state.resources.shards || 0) + shardReward;
+            state.usedCodes.push(code);
+            messageEl.textContent = `Bạn nhận được ${shardReward} Shard!`;
             updateUI({ fullRender: true });
         }
     } else {
@@ -1194,100 +1964,7 @@ function quickEquipHeroes() {
     updateUI({ fullRender: true });
     updateEquipmentPopup();
 }
-
-function summonHero(count = 1, bannerId) {
-    if (isGachaAnimating) return; 
-    if (!bannerId) { showNotification("Vui lòng chọn một banner!", "error"); return; }
-    const banner = GACHA_BANNERS[bannerId];
-    if (!banner) return;
-    const cost = banner.cost * count;
-    if (state.resources.money < cost) { showNotification("Không đủ tiền!", "error"); return; };
-
-    isGachaAnimating = true;
-    state.resources.money -= cost; state.stats.moneySpent += cost;
-    state.stats.gachaPulls += count; // Increment gacha pulls stat
-    let results = [], totalRefund = 0;
-    for(let i = 0; i < count; i++) {
-        let chosenRarity;
-        if (state.stats.pityCounters[bannerId] <= count - i) {
-            chosenRarity = 'Mythic'; state.stats.pityCounters[bannerId] = 80;
-        } else {
-            const rand = Math.random(); let cumulativeRate = 0;
-            for (const rarity in banner.rates) {
-                cumulativeRate += banner.rates[rarity];
-                if (rand < cumulativeRate) { chosenRarity = rarity; break; }
-            }
-            state.stats.pityCounters[bannerId]--;
-        }
-        const pool = banner.pool[chosenRarity];
-        const heroId = pool[Math.floor(Math.random() * pool.length)];
-        if (state.heroes.collection.includes(heroId)) totalRefund += Math.floor(banner.cost * banner.refundRate);
-        else state.heroes.collection.push(heroId);
-        results.push(HERO_DATA[heroId]);
-    }
-    state.resources.money += totalRefund;
-    showGachaResult(results, totalRefund, bannerId);
-    updateUI({ fullRender: true });
-}
-
-function showGachaResult(results, totalRefund, bannerId) {
-    const modal = document.getElementById('gacha-modal');
-    const container = document.getElementById('gacha-result-container');
-    container.innerHTML = `<div class="gacha-reels-container"></div><div id="gacha-final-result"></div><p class="text-sm text-slate-500 mt-4 opacity-0" id="gacha-close-message">(Nhấp vào nút Đóng hoặc Quay tiếp)</p>`;
-    modal.classList.add('show');
-    const reelsContainer = container.querySelector('.gacha-reels-container');
-    const banner = GACHA_BANNERS[bannerId];
-    const animationHeroes = Object.values(banner.pool).flat().map(heroId => HERO_DATA[heroId]).filter(hero => hero.rarity !== 'Secret');
-    const reelHeight = 140, spinItemsCount = 30;
-    let longestDuration = 0;
-    results.forEach((result, index) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'gacha-reel-wrapper';
-        wrapper.dataset.heroId = result.id;
-        const reel = document.createElement('div');
-        reel.className = 'gacha-reel';
-        for(let i = 0; i < spinItemsCount; i++) {
-            const randomHero = animationHeroes[Math.floor(Math.random() * animationHeroes.length)];
-            reel.innerHTML += `<img src="${randomHero.image}" alt="${randomHero.name}" onerror="this.onerror=null;this.src='https://placehold.co/140x140/1e293b/94a3b8?text=Error';">`;
-        }
-        reel.innerHTML += `<img src="${result.image}" alt="${result.name}" onerror="this.onerror=null;this.src='https://placehold.co/140x140/1e293b/94a3b8?text=Error';">`;
-        wrapper.appendChild(reel);
-        reelsContainer.appendChild(wrapper);
-        const duration = 2.5 + index * 0.4;
-        if (duration > longestDuration) longestDuration = duration;
-        requestAnimationFrame(() => {
-            reel.style.transition = `transform ${duration}s cubic-bezier(0.25, 1, 0.5, 1)`;
-            reel.style.transform = `translateY(-${spinItemsCount * reelHeight}px)`;
-        });
-    });
-
-    setTimeout(() => {
-        if (totalRefund > 0) showNotification(`Được hoàn ${formatMoney(totalRefund)}$ từ nhân vật trùng lặp!`, 'info');
-        const finalResultContainer = document.getElementById('gacha-final-result');
-        const bestHero = [...results].sort((a, b) => ({ Secret: 5, Mythic: 4, Legend: 3, Epic: 2, Rare: 1, Common: 0 })[b.rarity] - ({ Secret: 5, Mythic: 4, Legend: 3, Epic: 2, Rare: 1, Common: 0 })[a.rarity])[0];
-        reelsContainer.querySelectorAll('.gacha-reel-wrapper').forEach(reel => {
-            if (reel.dataset.heroId === bestHero.id) reel.classList.add(`highlight-${bestHero.rarity}`);
-        });
-        finalResultContainer.innerHTML = `
-            <div class="final-hero-display">
-                <img src="${bestHero.image}" alt="${bestHero.name}" class="hero-image object-cover" onerror="this.onerror=null;this.src='https://placehold.co/120x120/1e293b/94a3b8?text=Error';">
-                <div>
-                    <p class="text-sm text-slate-400">Bạn đã nhận được</p>
-                    <h2 class="text-4xl font-bold rarity-${bestHero.rarity}">${bestHero.name}</h2>
-                    <p class="font-semibold text-lg rarity-${bestHero.rarity}">(${bestHero.rarity})</p>
-                </div>
-                <div class="mt-4 flex flex-col sm:flex-row gap-2 w-full">
-                    <button id="gacha-again-1" class="btn-primary text-base flex-1">Quay x1</button>
-                    <button id="gacha-again-3" class="btn-primary text-base flex-1">Quay x3</button>
-                    <button id="gacha-again-5" class="btn-primary text-base flex-1">Quay x5</button>
-                </div>
-                 <button id="gacha-close" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg mt-2 w-full">Đóng</button>
-            </div>`;
-        finalResultContainer.classList.add('visible');
-        document.getElementById('gacha-close-message').style.opacity = '1';
-        isGachaAnimating = false;
-    }, (longestDuration + 0.2) * 1000);
-}
+// ... rest of the code is unchanged
 
 function handleEquipmentItemClick(item, forceOpen = false) {
     const heroId = item.dataset.heroId;
@@ -1369,13 +2046,41 @@ function toggleEquipArtifact(artifactId) {
 function calculatePlayerDamage() {
     let totalFlatBonus = 0;
     let totalMultiplier = 1;
+    let totalDamageBonus = 0;
+
     state.heroes.equipped.forEach(heroId => {
         const hero = HERO_DATA[heroId];
         if (hero) {
+            // Apply base hero bonus
             if (hero.bonusType === 'flat') {
                 totalFlatBonus += hero.bonusValue;
             } else if (hero.bonusType === 'multiplier') {
                 totalMultiplier *= hero.bonusValue;
+            }
+
+            // Apply passive bonuses
+            const passive = state.heroes.passives[heroId];
+            if (passive) {
+                if (passive.tier === 'rainbow') {
+                    totalDamageBonus += passive.passive.effects.totalDamage / 100;
+                    const heroDamageBonus = 1 + (passive.passive.effects.heroDamage / 100);
+                    if (hero.bonusType === 'flat') {
+                        totalFlatBonus = totalFlatBonus * heroDamageBonus;
+                    } else {
+                        totalMultiplier = totalMultiplier * heroDamageBonus;
+                    }
+                } else {
+                    if (passive.passive.id === 'flatDamage') {
+                        totalFlatBonus += passive.passive.value;
+                    } else if (passive.passive.id === 'heroDamage') {
+                        const heroDamageBonus = 1 + (passive.passive.value / 100);
+                        if (hero.bonusType === 'flat') {
+                            totalFlatBonus = totalFlatBonus * heroDamageBonus;
+                        } else {
+                            totalMultiplier = totalMultiplier * heroDamageBonus;
+                        }
+                    }
+                }
             }
         }
     });
@@ -1394,6 +2099,11 @@ function calculatePlayerDamage() {
 }
 
 function startDungeonRun() {
+    if (state.dungeon.cooldown > 0) {
+        showNotification(`Còn ${Math.ceil(state.dungeon.cooldown)}s mới có thể vào Dungeon tiếp!`, 'error');
+        return;
+    }
+    
     if (dungeonTimerInterval) clearInterval(dungeonTimerInterval);
     
     state.dungeon.currentRun = {
@@ -1403,8 +2113,8 @@ function startDungeonRun() {
         maxEnemyHp: 300,
         timer: 10,
         lastCompletedPhase: 0,
-        rewardsFromLastCompletedPhase: { money: 0, artifacts: [] },
-        totalAccumulatedRewards: { money: 0, artifacts: [] }
+        rewardsFromLastCompletedPhase: { money: 0, artifacts: [], shards: 0 },
+        totalAccumulatedRewards: { money: 0, artifacts: [], shards: 0 }
     };
 
     renderDungeonCombatUI();
@@ -1458,6 +2168,7 @@ function dungeonWinFloor() {
         
         let phaseMoneyReward = 100000;
         let phaseArtifactChance = 0.05;
+        const shardChance = 0.05; // 5% chance for shard
 
         if (currentPhase > 1) {
             let prevMoney = 100000;
@@ -1471,11 +2182,22 @@ function dungeonWinFloor() {
         }
         
         run.totalAccumulatedRewards.money += phaseMoneyReward;
+        
+        // Check for artifact reward
         if (Math.random() < phaseArtifactChance) {
              const artifactPool = Object.keys(ARTIFACT_DATA);
              const wonArtifactId = artifactPool[Math.floor(Math.random() * artifactPool.length)];
              run.totalAccumulatedRewards.artifacts.push(wonArtifactId);
              showNotification(`Bạn tìm thấy [${ARTIFACT_DATA[wonArtifactId].name}]!`, 'success');
+        }
+
+        // Check for shard reward
+        if (currentPhase % 5 === 0) { // Guaranteed shard every 5 phases
+            run.totalAccumulatedRewards.shards = (run.totalAccumulatedRewards.shards || 0) + 1;
+            showNotification('Bạn nhận được 1 Shard! (Đảm bảo)', 'success');
+        } else if (Math.random() < shardChance) { // 5% chance for additional shard
+            run.totalAccumulatedRewards.shards = (run.totalAccumulatedRewards.shards || 0) + 1;
+            showNotification('Bạn nhận được 1 Shard!', 'success');
         }
 
         run.rewardsFromLastCompletedPhase = { ...run.totalAccumulatedRewards, artifacts: [...run.totalAccumulatedRewards.artifacts] };
@@ -1557,7 +2279,7 @@ function claimDungeonRewards(continueRun = false) {
 
     const rewards = run.totalAccumulatedRewards;
     
-    if (rewards.money > 0 || rewards.artifacts.length > 0) {
+    if (rewards.money > 0 || rewards.artifacts.length > 0 || rewards.shards > 0) {
         state.resources.money += rewards.money;
         state.stats.moneyEarned += rewards.money;
         
@@ -1569,7 +2291,12 @@ function claimDungeonRewards(continueRun = false) {
             }
         });
 
-        let rewardMessage = `Bạn nhận được ${formatMoney(rewards.money)}$ và ${newArtifactsCount > 0 ? `${rewards.artifacts.length} di vật` : '0 di vật'}.`;
+        // Add shards to player's resources
+        if (rewards.shards > 0) {
+            state.resources.shards = (state.resources.shards || 0) + rewards.shards;
+        }
+
+        let rewardMessage = `Bạn nhận được ${formatMoney(rewards.money)}$${newArtifactsCount > 0 ? `, ${rewards.artifacts.length} di vật` : ''}${rewards.shards > 0 ? `, ${rewards.shards} Shard` : ''}.`;
         showNotification(rewardMessage, 'success');
     } else {
         showNotification("Không có phần thưởng nào để nhận.", 'info');
@@ -1579,7 +2306,8 @@ function claimDungeonRewards(continueRun = false) {
         run.totalAccumulatedRewards = { money: 0, artifacts: [] };
         run.rewardsFromLastCompletedPhase = { money: 0, artifacts: [] };
         goToNextFloor();
-    } else {
+    }
+    else {
         endDungeonRun();
     }
 }
@@ -1588,13 +2316,14 @@ function endDungeonRun() {
     if (dungeonTimerInterval) clearInterval(dungeonTimerInterval);
     dungeonTimerInterval = null;
     
+    state.dungeon.cooldown = 60; // 60-second cooldown
     state.dungeon.currentRun = null;
     document.getElementById('dungeon-combat-modal').classList.remove('show');
     
     if (activePanel === 'template-dungeon') renderDungeonPanel();
     if (activePanel === 'template-stats') renderStatsPanel();
     if (activePanel === 'template-equipment') renderEquipmentPanel();
-    if (activePanel === 'template-music') renderMusicPanel();
+    if (activePanel === 'template-settings') renderSettingsPanel();
     
     updateEquipmentPopup();
 }
@@ -1667,6 +2396,13 @@ function animate() {
     const delta = clock.getDelta();
 
     state.stats.timePlayed += delta; // Increment timePlayed by delta for accuracy
+    
+    // Update dungeon cooldown
+    if (state.dungeon.cooldown > 0) {
+        state.dungeon.cooldown -= delta;
+        if (state.dungeon.cooldown < 0) state.dungeon.cooldown = 0;
+        if (activePanel === 'template-dungeon') renderDungeonPanel();
+    }
 
     if (state.upgrades.autoMineLevel > 0) {
         autoMineTimer -= delta;
@@ -1757,7 +2493,7 @@ function setupModalListeners() {
             const bannerId = state.activeBanner;
             const banner = GACHA_BANNERS[bannerId];
             if (!banner) return;
-            if (state.resources.money >= banner.cost * count) summonHero(count, bannerId);
+            if (state.resources.money >= banner.cost * count) summonHeroManual(count);
             else showNotification("Không đủ tiền!", "error");
         }
     });
@@ -1848,6 +2584,51 @@ function hideConfirmationModal() {
     document.getElementById('confirmation-modal').classList.remove('show');
 }
 
+// --- Background Image Functions ---
+function applyBackgroundImage() {
+    const urlInput = document.getElementById('background-url');
+    const url = urlInput.value.trim();
+    
+    if (url) {
+        state.settings.backgroundImage = url;
+        updateBackgroundImage();
+        showNotification('Hình nền đã được cập nhật!', 'success');
+    } else {
+        showNotification('Vui lòng nhập URL hình nền!', 'error');
+    }
+}
+
+function resetBackgroundImage() {
+    state.settings.backgroundImage = '';
+    state.settings.backgroundBlur = 0;
+    state.settings.backgroundOpacity = 1;
+    
+    const urlInput = document.getElementById('background-url');
+    const blurSlider = document.getElementById('blur-slider');
+    const opacitySlider = document.getElementById('opacity-slider');
+    
+    if (urlInput) urlInput.value = '';
+    if (blurSlider) blurSlider.value = 0;
+    if (opacitySlider) opacitySlider.value = 100;
+    
+    updateBackgroundImage();
+    showNotification('Hình nền đã được đặt lại!', 'success');
+}
+
+function updateBackgroundImage() {
+    const container = document.getElementById('background-image-container');
+    if (!container) return;
+    
+    if (state.settings.backgroundImage) {
+        container.style.backgroundImage = `url(${state.settings.backgroundImage})`;
+        container.style.filter = `blur(${state.settings.backgroundBlur}px)`;
+        container.style.opacity = state.settings.backgroundOpacity;
+    } else {
+        container.style.backgroundImage = 'none';
+        container.style.filter = 'none';
+        container.style.opacity = '1';
+    }
+}
 
 // --- Initialization ---
 window.onload = function() {
@@ -1855,16 +2636,21 @@ window.onload = function() {
     canvas = document.getElementById('game-canvas');
     panelContainer = document.getElementById('panel-container');
     notificationContainer = document.getElementById('notification-container');
+    shardsEl = document.getElementById('shards');
     toggleButtons = {
         upgrades: document.getElementById('toggle-upgrades'), stats: document.getElementById('toggle-stats'),
         gacha: document.getElementById('toggle-gacha'), equipment: document.getElementById('toggle-equipment'),
-        dungeon: document.getElementById('toggle-dungeon'), music: document.getElementById('toggle-music'),
+        dungeon: document.getElementById('toggle-dungeon'), passive: document.getElementById('toggle-passive'),
+        settings: document.getElementById('toggle-settings'),
     };
 
     loadState();
 
     initThreeJS();
     initializeMine();
+    
+    // Apply background image settings
+    updateBackgroundImage();
     
     // Recreate visual miners from loaded state
     for (let i = 0; i < state.upgrades.minerCount; i++) {
@@ -1876,7 +2662,8 @@ window.onload = function() {
     setupPanelToggle('toggle-gacha', 'template-gacha');
     setupPanelToggle('toggle-equipment', 'template-equipment');
     setupPanelToggle('toggle-dungeon', 'template-dungeon');
-    setupPanelToggle('toggle-music', 'template-music');
+    setupPanelToggle('toggle-passive', 'template-passive');
+    setupPanelToggle('toggle-settings', 'template-settings');
     setupEventListeners();
     setupModalListeners();
     initMusicPlayer();
@@ -1900,6 +2687,8 @@ window.onload = function() {
     if (saveInterval) clearInterval(saveInterval);
     saveInterval = setInterval(() => {
         if(activePanel === 'template-stats') renderStatsPanel();
+        if(activePanel === 'template-settings') renderSettingsPanel();
         saveState(); // Auto-save
     }, 30000); // Save every 30 seconds
 }
+
